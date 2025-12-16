@@ -8,11 +8,8 @@ use App\Controllers\BookController;
 /** @var Router $router */
 
 $router->get('/', function() {
-    return "<h1>Welcome to BookVibes</h1><p>Running on Custom MVC</p>";
-});
-
-$router->get('/', function() {
-    return "<div style='text-align:center; padding: 50px;'><h1>Welcome to BookVibes</h1><a href='/login'>Login</a> | <a href='/register'>Register</a></div>";
+    header('Location: /login');
+    exit;
 });
 
 // Auth Routes
@@ -29,6 +26,7 @@ $router->get('/dashboard', [App\Controllers\BookController::class, 'index']);
 $router->get('/books/search', [App\Controllers\BookController::class, 'search']);
 $router->post('/books/search', [App\Controllers\BookController::class, 'processSearch']);
 $router->get('/books/show', [App\Controllers\BookController::class, 'show']);
+$router->get('/books/add-songs', [App\Controllers\BookController::class, 'addSongs']);
 $router->post('/books/delete', [App\Controllers\BookController::class, 'delete']);
 $router->get('/books/refresh', [App\Controllers\BookController::class, 'refresh']);
 $router->post('/books/avatar', [App\Controllers\BookController::class, 'avatar']);
@@ -44,56 +42,240 @@ $router->get('/spotify/create', [App\Controllers\BookController::class, 'spotify
 
 // Pro Upgrade (simple stub)
 $router->get('/pro/upgrade', function() {
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    $userName = $_SESSION['user_name'] ?? 'Lector';
+    $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+    
     return "<!DOCTYPE html>
-    <html lang='es'><head><meta charset='UTF-8'><title>Activa Pro - BookVibes</title>
-    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
-    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap' rel='stylesheet'>
-    <style>
-      body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(800px 400px at 0% 0%, #eef2ff 10%, #ffffff 60%), linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%); }
-      .checkout-card { border-radius: 18px; }
-      .product-card .thumb { width: 64px; height: 64px; border-radius: 12px; background: linear-gradient(135deg,#1f2937,#111827); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
-      .buy-btn { background: linear-gradient(90deg,#2563eb,#3b82f6); color: #fff; border: none; padding: 12px 18px; border-radius: 12px; }
-      .pay-select .btn { border-radius: 12px; }
-      .badge-icons img { height: 26px; margin-right: 8px; opacity:.9 }
-    </style>
-    </head><body>
-    <div class='container py-5'>
-      <div class='row g-4'>
+    <html lang='es'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>Activa Pro - BookVibes</title>
+        <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
+        <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css'>
+        <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap' rel='stylesheet'>
+        <style>
+            :root {
+                --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+                --text-main: #1e293b;
+                --text-muted: #64748b;
+                --card-bg: #ffffff;
+                --card-border: #e2e8f0;
+                --bg-body: #f8fafc;
+            }
+            body.dark-mode {
+                --text-main: #f8fafc;
+                --text-muted: #94a3b8;
+                --card-bg: #1e293b;
+                --card-border: rgba(255, 255, 255, 0.1);
+                --bg-body: 
+                    radial-gradient(2px 2px at 5% 15%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1px 1px at 18% 5%, rgba(255,255,255,0.7), transparent 2px),
+                    radial-gradient(2px 2px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 28% 40%, rgba(255,255,255,0.6), transparent 3px),
+                    radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.8), transparent 2px),
+                    radial-gradient(2px 2px at 42% 75%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.6), transparent 2px),
+                    radial-gradient(2px 2px at 62% 85%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 68% 35%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.9), transparent 2px),
+                    radial-gradient(2px 2px at 80% 30%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,0.6), transparent 3px),
+                    radial-gradient(1px 1px at 92% 18%, rgba(255,255,255,0.8), transparent 2px),
+                    radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 95% 45%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 8% 90%, rgba(255,255,255,0.6), transparent 2px),
+                    radial-gradient(2px 2px at 3% 40%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 98% 5%, rgba(255,255,255,0.9), transparent 3px),
+                    linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+                --input-bg: #334155;
+            }
+            body { 
+                font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
+                background: var(--bg-body);
+                background-attachment: fixed;
+                color: var(--text-main);
+                min-height: 100vh;
+                position: relative;
+                overflow-x: hidden;
+                transition: background 0.3s ease, color 0.3s ease;
+            }
+            
+            /* Dark Mode Overrides */
+            body.dark-mode .bg-light { background-color: var(--input-bg) !important; color: var(--text-main) !important; border-color: var(--card-border) !important; }
+            body.dark-mode .text-dark { color: var(--text-main) !important; }
+            body.dark-mode .text-muted { color: var(--text-muted) !important; }
+            body.dark-mode .form-control { background-color: var(--input-bg); color: var(--text-main); border-color: var(--card-border); }
+            body.dark-mode .form-control::placeholder { color: var(--text-muted); }
+            body.dark-mode .form-control:focus { background-color: var(--input-bg); color: var(--text-main); border-color: #818cf8; }
+            body.dark-mode .form-select { background-color: var(--input-bg); color: var(--text-main); border-color: var(--card-border); }
+            body.dark-mode .input-group-text { background-color: var(--input-bg); border-color: var(--card-border); color: var(--text-muted); }
+            body.dark-mode .pay-select .btn { color: var(--text-muted); border-color: var(--card-border); }
+            body.dark-mode .pay-select .btn:hover, body.dark-mode .pay-select .btn.active { background-color: rgba(255,255,255,0.1); color: var(--text-main); border-color: var(--card-border); }
+            
+            .checkout-card { 
+                background: var(--card-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 24px;
+                color: var(--text-main);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .card-header {
+                background: transparent;
+                border-bottom: 1px solid var(--card-border);
+                padding: 1.5rem;
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: var(--text-main);
+            }
+            .card-body { padding: 2rem; }
+            
+            .product-card .thumb { 
+                width: 72px; height: 72px; 
+                border-radius: 16px; 
+                background: linear-gradient(135deg, #4f46e5, #9333ea); 
+                display: flex; align-items: center; justify-content: center; 
+                color: #fff; font-weight: 800; font-size: 1.5rem;
+                box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+            }
+            
+            .buy-btn { 
+                background: var(--primary-gradient); 
+                color: #fff; border: none; 
+                padding: 16px 24px; 
+                border-radius: 16px; 
+                font-weight: 700;
+                font-size: 1.1rem;
+                transition: all 0.3s;
+                width: 100%;
+                position: relative;
+                overflow: hidden;
+            }
+            .buy-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 20px 25px -5px rgba(124, 58, 237, 0.4);
+                color: white;
+            }
+            
+            .form-control, .form-select {
+                background: #fff;
+                border: 1px solid #cbd5e1;
+                color: #1e293b;
+                padding: 0.8rem 1rem;
+                border-radius: 12px;
+            }
+            .form-control:focus, .form-select:focus {
+                background: #fff;
+                border-color: #818cf8;
+                box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.2);
+                color: #1e293b;
+                outline: none;
+            }
+            .form-label { color: #475569; font-size: 0.9rem; margin-bottom: 0.5rem; }
+            .form-control::placeholder { color: #94a3b8; }
+            
+            .pay-select .btn { 
+                border-radius: 12px; 
+                padding: 10px;
+                border: 1px solid #e2e8f0;
+                color: #64748b;
+            }
+            .pay-select .btn:hover, .pay-select .btn.active {
+                background: #f1f5f9;
+                border-color: #cbd5e1;
+                color: #0f172a;
+            }
+            
+            .badge-icons img { height: 26px; margin-right: 12px; opacity: 0.8; filter: none; }
+        </style>
+    </head>
+    <body>
+    
+    <!-- Navbar -->
+    <nav class='navbar navbar-expand-lg navbar-dark mb-5 sticky-top' style='background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.1);'>
+      <div class='container'>
+        <a class='navbar-brand fw-bold d-flex align-items-center gap-2' href='/dashboard' style='letter-spacing: -0.5px; font-size: 1.5rem;'>
+            <div class='position-relative d-flex align-items-center justify-content-center' style='width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);'>
+                <i class='bi bi-book-half text-white' style='font-size: 1.2rem;'></i>
+                <i class='bi bi-music-note-beamed position-absolute' style='color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);'></i>
+            </div>
+            <span style='background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);'>BookVibes</span>
+        </a>
+        <div class='d-flex text-white align-items-center gap-3'>
+            <button id='darkModeToggle' class='btn btn-link text-white p-0 border-0' title='Alternar modo oscuro'>
+                <i class='bi bi-moon-fill fs-5'></i>
+            </button>
+            <div class='d-none d-md-block text-end lh-1'>
+                <span class='d-block fw-semibold' style='font-size: 0.9rem;'>Hola, ".htmlspecialchars($userName)."</span>
+                <small class='text-white-50' style='font-size: 0.75rem;'>Lector</small>
+            </div>
+            <a href='/dashboard' class='btn btn-outline-light btn-sm rounded-pill px-3' style='font-size: 0.8rem;'>Volver</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class='container pb-5'>
+      <div class='row g-4 justify-content-center'>
         <div class='col-lg-5'>
-          <div class='card checkout-card shadow product-card'>
-            <div class='card-header bg-white'>
-              <strong>Estás comprando</strong>
+          <div class='card checkout-card shadow-sm product-card h-100'>
+            <div class='card-header'>
+              Tu Pedido
             </div>
             <div class='card-body'>
-              <div class='d-flex align-items-center mb-3'>
-                <div class='thumb me-3'>BV</div>
+              <div class='d-flex align-items-center mb-4'>
+                <div class='thumb me-3'><i class='bi bi-stars'></i></div>
                 <div>
-                  <div class='fw-bold'>BookVibes Pro</div>
-                  <a href='#' class='text-decoration-none'>Auto-renovación</a>
+                  <div class='fw-bold fs-5'>BookVibes Pro</div>
+                  <div class='text-muted small'>Suscripción Mensual</div>
                 </div>
               </div>
-              <div class='mb-2'><strong>4,99 €</strong> / mes</div>
-              <div class='text-muted mb-1'>IVA (21%): 1,05 €</div>
-              <div class='d-flex justify-content-between align-items-center'>
-                <span class='fw-bold'>Total</span>
-                <span class='fw-bold fs-5'>6,04 €</span>
+              
+              <div class='d-flex justify-content-between mb-2'>
+                <span class='text-muted'>Subtotal</span>
+                <span class='fw-semibold'>4,99 €</span>
               </div>
-              <div class='mt-4 small text-muted'>
-                Al completar la compra, se activará tu modo Pro con recomendaciones ilimitadas de canciones relacionadas con tus libros.
+              <div class='d-flex justify-content-between mb-3 pb-3 border-bottom'>
+                <span class='text-muted'>IVA (21%)</span>
+                <span class='fw-semibold'>1,05 €</span>
+              </div>
+              <div class='d-flex justify-content-between align-items-center mb-4'>
+                <span class='fw-bold fs-5'>Total</span>
+                <span class='fw-bold fs-4 text-primary'>6,04 €</span>
+              </div>
+              
+              <div class='p-3 rounded-3 mb-3 bg-light border'>
+                <div class='d-flex flex-column gap-2'>
+                    <div class='d-flex gap-2 align-items-center'>
+                        <i class='bi bi-music-note-list text-primary'></i>
+                        <span class='text-dark fw-medium'>Canciones ilimitadas</span>
+                    </div>
+                    <div class='d-flex gap-2 align-items-center'>
+                        <i class='bi bi-person-video2 text-primary'></i>
+                        <span class='text-dark fw-medium'>Generación de personajes</span>
+                    </div>
+                    <div class='mt-2 pt-2 border-top'>
+                        <small class='text-muted lh-sm d-block'>
+                            Desbloquea todo el potencial de BookVibes y lleva tu experiencia de lectura al siguiente nivel.
+                        </small>
+                    </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        
         <div class='col-lg-7'>
-          <div class='card checkout-card shadow'>
-            <div class='card-header bg-white'>
-              <strong>Información de pago</strong>
+          <div class='card checkout-card shadow-sm'>
+            <div class='card-header'>
+              Información de Pago
             </div>
             <div class='card-body'>
               <form action='/pro/activate' method='get'>
                 <input type='hidden' name='book_id' value='".htmlspecialchars($_GET['book_id'] ?? '')."'>
                 <input type='hidden' name='return' value='".htmlspecialchars($_GET['return'] ?? '')."'>
+                
                 <div class='row g-3'>
                   <div class='col-12'>
                     <label class='form-label'>Email</label>
@@ -107,57 +289,80 @@ $router->get('/pro/upgrade', function() {
                     <label class='form-label'>Apellidos</label>
                     <input type='text' class='form-control' placeholder='Apellidos' required>
                   </div>
-                  <div class='col-md-6'>
-                    <label class='form-label'>País</label>
-                    <select class='form-select'>
-                      <option>España</option>
-                      <option>México</option>
-                      <option>Argentina</option>
-                      <option>Estados Unidos</option>
-                    </select>
-                  </div>
-                  <div class='col-md-6'>
-                    <label class='form-label'>Provincia/Estado</label>
-                    <input type='text' class='form-control' placeholder='Provincia/Estado'>
-                  </div>
                 </div>
-                <div class='mt-3 pay-select d-flex gap-2'>
-                  <button type='button' class='btn btn-outline-primary flex-fill'>Tarjeta</button>
-                  <button type='button' class='btn btn-outline-secondary flex-fill'>PayPal</button>
+                
+                <div class='mt-4 mb-2'>
+                    <label class='form-label'>Método de Pago</label>
+                    <div class='pay-select d-flex gap-2'>
+                      <button type='button' class='btn flex-fill active'><i class='bi bi-credit-card me-2'></i>Tarjeta</button>
+                      <button type='button' class='btn flex-fill'><i class='bi bi-paypal me-2'></i>PayPal</button>
+                    </div>
                 </div>
+
                 <div class='row g-3 mt-1'>
                   <div class='col-12'>
                     <label class='form-label'>Número de tarjeta</label>
-                    <input type='text' inputmode='numeric' class='form-control' placeholder='1234 5678 9012 3456'>
+                    <div class='input-group'>
+                        <span class='input-group-text bg-light text-muted border-end-0'><i class='bi bi-credit-card-2-front'></i></span>
+                        <input type='text' inputmode='numeric' class='form-control border-start-0' placeholder='0000 0000 0000 0000'>
+                    </div>
                   </div>
                   <div class='col-md-6'>
-                    <label class='form-label'>Mes</label>
-                    <select class='form-select'><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option><option>10</option><option>11</option><option>12</option></select>
+                    <label class='form-label'>Expiración</label>
+                    <div class='d-flex gap-2'>
+                        <select class='form-select'><option>MM</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option><option>10</option><option>11</option><option>12</option></select>
+                        <select class='form-select'><option>YY</option><option>24</option><option>25</option><option>26</option><option>27</option><option>28</option></select>
+                    </div>
                   </div>
-                  <div class='col-md-3'>
-                    <label class='form-label'>Año</label>
-                    <select class='form-select'><option>24</option><option>25</option><option>26</option><option>27</option><option>28</option><option>29</option></select>
-                  </div>
-                  <div class='col-md-3'>
-                    <label class='form-label'>CVV</label>
-                    <input type='text' class='form-control' placeholder='123'>
+                  <div class='col-md-6'>
+                    <label class='form-label'>CVC / CVV</label>
+                    <div class='input-group'>
+                        <input type='text' class='form-control' placeholder='123'>
+                        <span class='input-group-text bg-light text-muted'><i class='bi bi-question-circle'></i></span>
+                    </div>
                   </div>
                 </div>
-                <div class='mt-4 d-grid'>
-                  <button class='buy-btn'>Comprar ahora por 6,04 €</button>
+                
+                <div class='mt-4 pt-2'>
+                  <button class='buy-btn'>
+                    <i class='bi bi-lock-fill me-2'></i>Pagar 6,04 €
+                  </button>
+                  <div class='text-center mt-3 text-muted small'>
+                    <i class='bi bi-shield-check me-1'></i> Pago 100% seguro y encriptado
+                  </div>
                 </div>
               </form>
-              <div class='mt-3 d-flex align-items-center justify-content-center gap-3 badge-icons'>
-                <img src='https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg'>
-                <img src='https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg'>
-                <img src='https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg'>
+              
+              <div class='mt-4 d-flex align-items-center justify-content-center gap-3 badge-icons border-top pt-3'>
+                <img src='https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg' alt='Visa'>
+                <img src='https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' alt='Mastercard'>
+                <img src='https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg' alt='PayPal'>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    </body></html>";
+    <script>
+    // Dark Mode Toggle
+    const toggleBtn = document.getElementById('darkModeToggle');
+    const body = document.body;
+    const icon = toggleBtn.querySelector('i');
+
+    // Check local storage
+    if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        const isDark = body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
+    });
+</script>
+</body></html>";
 });
 $router->get('/pro/activate', function() {
     if (session_status() === PHP_SESSION_NONE) session_start();
@@ -197,7 +402,7 @@ $router->get('/pro/activate', function() {
                     }
                     if ($ok) $filtered[] = $t;
                 }
-                if (count($filtered) < 12) {
+                if (count($filtered) < 20) {
                     $yt = new \App\Services\YouTubeSearchService();
                     $queries = [];
                     $title = trim($book['title'] ?? '');
@@ -210,7 +415,7 @@ $router->get('/pro/activate', function() {
                         $queries[] = $author . ' playlist';
                     }
                     $queries[] = ($book['genre'] ?? '') . ' ' . $mood . ' soundtrack';
-                    $more = $yt->searchTracks($queries, 24, $preferredArtists);
+                    $more = $yt->searchTracks($queries, 30, $preferredArtists);
                     $seenKeys = [];
                     foreach ($filtered as $t) { $seenKeys[mb_strtolower(trim(($t['title'] ?? '').'|'.($t['artist'] ?? '')))] = true; }
                     foreach ($more as $t) {
@@ -257,7 +462,16 @@ $router->get('/pro/activate', function() {
 
 $router->get('/pro/cancel', function() {
     if (session_status() === PHP_SESSION_NONE) session_start();
+    
+    // Update session
     unset($_SESSION['pro']);
+    $_SESSION['account_type'] = 'Basic';
+
+    // Update database
+    if (isset($_SESSION['user_id'])) {
+        \App\Models\User::updateAccountType($_SESSION['user_id'], 'Basic');
+    }
+
     header('Location: /dashboard');
     exit;
 });

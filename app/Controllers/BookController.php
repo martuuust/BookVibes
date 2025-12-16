@@ -63,7 +63,7 @@ class BookController extends Controller
         if (session_status() === PHP_SESSION_NONE) session_start();
         $userId = $_SESSION['user_id'] ?? 0;
         $accountType = $_SESSION['account_type'] ?? 'Basic'; // Default to Basic if not set
-        $playlistLimit = ($accountType === 'Pro') ? 30 : 5; // 30 songs for Pro, 5 for Basic
+        $playlistLimit = ($accountType === 'Pro') ? 10 : 7; // 10 songs for Pro, 7 for Basic
 
         $query = $request->getBody()['query'] ?? '';
         
@@ -282,10 +282,11 @@ class BookController extends Controller
                 }
                 if (empty($queries)) $queries = ['book theme songs','reading playlist','chill music'];
                 
-                $tracks = $yt->searchTracks($queries, 20);
+                $limit = $isPro ? 10 : 7;
+                $tracks = $yt->searchTracks($queries, $limit);
                 if (!$playlist) {
-                    // Create playlist with exactly 5 tracks
-                    $desired = min(5, count($tracks));
+                    // Create playlist with desired number of tracks
+                    $desired = min($limit, count($tracks));
                     $data = [
                         'mood' => $book['mood'] ?? 'General',
                         'suggested_tracks' => array_slice($tracks, 0, $desired)
@@ -598,5 +599,79 @@ class BookController extends Controller
             return $res['tracks']['items'][0]['uri'];
         }
         return null;
+    }
+
+    public function addSongs(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /login');
+            exit;
+        }
+
+        // Only for Pro users
+        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+        if (!$isPro) {
+            header('Location: /pro/upgrade');
+            exit;
+        }
+
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            header('Location: /dashboard');
+            exit;
+        }
+
+        $playlist = Playlist::getByBookId($id);
+        $book = Book::find($id);
+
+        if ($playlist && $book) {
+            // Fetch existing songs to avoid duplicates
+            $existing = [];
+            foreach ($playlist['songs'] as $s) {
+                $key = mb_strtolower(trim(($s['title'] ?? '').'|'.($s['artist'] ?? '')));
+                if ($key !== '') $existing[$key] = true;
+            }
+
+            $yt = new YouTubeSearchService();
+            $queries = [];
+            $title = trim($book['title'] ?? '');
+            $author = trim($book['author'] ?? '');
+            $mood = trim($book['mood'] ?? '');
+
+            // Use more specific queries to find different songs
+            if ($title !== '') {
+                $queries[] = $title . ' ' . $mood . ' soundtrack';
+                $queries[] = $title . ' ambient music';
+            }
+            if ($author !== '') {
+                $queries[] = $author . ' inspired music';
+            }
+            $queries[] = ($book['genre'] ?? '') . ' ' . $mood . ' playlist';
+            $queries[] = $mood . ' instrumental music';
+
+            // Search for more tracks (fetch 20 to ensure we find 10 new ones)
+            $newTracks = $yt->searchTracks($queries, 20);
+            
+            $db = \App\Core\Database::getInstance();
+            $addedCount = 0;
+            
+            foreach ($newTracks as $track) {
+                if ($addedCount >= 10) break;
+
+                $key = mb_strtolower(trim(($track['title'] ?? '').'|'.($track['artist'] ?? '')));
+                if ($key === '' || isset($existing[$key])) continue;
+
+                $db->query(
+                    "INSERT INTO songs (playlist_id, title, artist, url) VALUES (?, ?, ?, ?)",
+                    [$playlist['id'], $track['title'] ?? 'Desconocido', $track['artist'] ?? '', $track['url'] ?? '']
+                );
+                $existing[$key] = true;
+                $addedCount++;
+            }
+        }
+
+        header("Location: /books/show?id=$id");
+        exit;
     }
 }

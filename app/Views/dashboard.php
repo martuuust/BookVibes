@@ -8,216 +8,246 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
-<body class="bg-light" style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: radial-gradient(1200px 600px at 0% 0%, #f0f5ff 10%, #ffffff 60%), linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);">
+<body>
     
-<nav class="navbar navbar-expand-lg navbar-dark mb-4" style="background: linear-gradient(90deg, #1f2937, #111827); box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
+<nav class="navbar navbar-expand-lg navbar-dark mb-5 sticky-top" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="/dashboard" style="letter-spacing: .5px;">BookVibes</a>
-    <div class="d-flex text-white align-items-center">
-        <span class="me-3" style="opacity:.85">Hola, <?= htmlspecialchars($user_name) ?></span>
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
+        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+            <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
+            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
+        </div>
+        <span style="background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);">BookVibes</span>
+    </a>
+    <div class="d-flex text-white align-items-center gap-3">
+        <button id="darkModeToggle" class="btn btn-link text-white p-0 border-0" title="Alternar modo oscuro">
+            <i class="bi bi-moon-fill fs-5"></i>
+        </button>
+        <div class="d-none d-md-block text-end lh-1">
+            <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
+            <small class="text-white-50" style="font-size: 0.75rem;">Lector</small>
+        </div>
         <?php if(!empty($pro_enabled)): ?>
-            <span class="badge bg-success me-3">Pro</span>
-            <a href="/pro/cancel" class="btn btn-outline-light btn-sm me-2">Cancelar Pro</a>
+            <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
+            <a href="/pro/cancel" class="btn btn-outline-light btn-sm" style="font-size: 0.8rem; border-radius: 8px;">Cancelar</a>
         <?php else: ?>
-            <span class="badge bg-secondary me-3">Básica</span>
+            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
         <?php endif; ?>
-        <a href="/logout" class="btn btn-warning btn-sm fw-semibold">Salir</a>
+        <a href="/logout" class="btn btn-danger btn-sm fw-semibold rounded-pill px-3" style="font-size: 0.8rem;">Salir</a>
     </div>
   </div>
 </nav>
 
 <style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --bg-body: #f8fafc;
+        --border-color: rgba(226, 232, 240, 0.8);
+    }
+    
+    body.dark-mode {
+        --card-bg: #1e293b;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --bg-body: 
+            radial-gradient(2px 2px at 5% 15%, rgba(255,255,255,0.8), transparent 3px),
+            radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
+            radial-gradient(1px 1px at 18% 5%, rgba(255,255,255,0.7), transparent 2px),
+            radial-gradient(2px 2px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
+            radial-gradient(1.5px 1.5px at 28% 40%, rgba(255,255,255,0.6), transparent 3px),
+            radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.8), transparent 2px),
+            radial-gradient(2px 2px at 42% 75%, rgba(255,255,255,0.9), transparent 3px),
+            radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
+            radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.6), transparent 2px),
+            radial-gradient(2px 2px at 62% 85%, rgba(255,255,255,0.8), transparent 3px),
+            radial-gradient(1.5px 1.5px at 68% 35%, rgba(255,255,255,0.7), transparent 3px),
+            radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.9), transparent 2px),
+            radial-gradient(2px 2px at 80% 30%, rgba(255,255,255,0.8), transparent 3px),
+            radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,0.6), transparent 3px),
+            radial-gradient(1px 1px at 92% 18%, rgba(255,255,255,0.8), transparent 2px),
+            radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,0.9), transparent 3px),
+            radial-gradient(1.5px 1.5px at 95% 45%, rgba(255,255,255,0.7), transparent 3px),
+            radial-gradient(1px 1px at 8% 90%, rgba(255,255,255,0.6), transparent 2px),
+            radial-gradient(2px 2px at 3% 40%, rgba(255,255,255,0.8), transparent 3px),
+            radial-gradient(1.5px 1.5px at 98% 5%, rgba(255,255,255,0.9), transparent 3px),
+            linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        --border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    body {
+        background: var(--bg-body) !important;
+        background-attachment: fixed !important;
+        color: var(--text-main);
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+    
+    /* Dark Mode Overrides for Bootstrap */
+    body.dark-mode .bg-white { background-color: var(--card-bg) !important; color: var(--text-main); }
+    body.dark-mode .bg-light { background-color: #0f172a !important; color: var(--text-main); }
+    body.dark-mode .text-muted { color: #94a3b8 !important; }
+    body.dark-mode .text-dark { color: #f8fafc !important; }
+    body.dark-mode .card { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
+    body.dark-mode .list-group-item { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
+    body.dark-mode .modal-content { background-color: var(--card-bg); color: var(--text-main); }
+    body.dark-mode .dropdown-menu { background-color: var(--card-bg); border-color: var(--border-color); }
+    body.dark-mode .dropdown-item { color: var(--text-main); }
+    body.dark-mode .dropdown-item:hover { background-color: rgba(255,255,255,0.1); }
+    body.dark-mode .avatar-popover { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
+
     .section-title {
         font-weight: 800;
-        letter-spacing: .3px;
-        color: #0f172a;
+        letter-spacing: -0.5px;
+        color: var(--text-main);
+        font-size: 1.75rem;
+    }
+    .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     }
     .book-card {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         border: none;
         overflow: hidden;
-        background: #fff;
+        height: 100%;
+        position: relative;
     }
     .book-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+        transform: translateY(-8px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
     .book-cover-container {
         position: relative;
         width: 100%;
-        padding-top: 150%; /* Aspect Ratio 2:3 (standard book) */
+        padding-top: 150%; /* 2:3 */
         overflow: hidden;
-        background-color: #f0f0f0;
+        background-color: #f1f5f9;
+        border-radius: 12px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
     }
     .book-cover-img {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover; /* Fill the 2:3 container */
-        /* If user REALLY wants 'no cutting' ever, we can use contain, but 'cover' on 2:3 is usually best for books */
+        top: 0; left: 0; width: 100%; height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
     }
+    .book-card:hover .book-cover-img {
+        transform: scale(1.05);
+    }
+    .badge-mood {
+        backdrop-filter: blur(8px);
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 6px 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Gamification & Sidebar */
+    .profile-card-header {
+        background: linear-gradient(to right, #f8fafc, #f1f5f9);
+        padding: 2rem 1.5rem;
+        border-radius: 16px 16px 0 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .xp-badge {
+        background: rgba(99, 102, 241, 0.1);
+        color: #6366f1;
+        font-weight: 800;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 1.2rem;
+    }
+    
+    .cta-primary {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        transition: all 0.2s;
+    }
+    .cta-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(168, 85, 247, 0.4);
+        color: white;
+    }
+    
     .achievement-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 12px;
     }
-    .achievement-badge {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: linear-gradient(135deg, #f8f9fa, #eceff4);
-        border: 1px solid rgba(0,0,0,0.06);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.08);
-    }
-    .achievement-badge.completed {
-        background: linear-gradient(135deg, #fff4e6, #fdebd3);
-        border-color: rgba(255,193,7,0.35);
-    }
-    .achievement-badge.in-progress {
-        background: linear-gradient(135deg, #f3e9ff, #e7ddff);
-        border-color: rgba(111,66,193,0.25);
-    }
-    .cta-primary {
-        background: linear-gradient(90deg,#4c1d95,#7c3aed);
-        color: #fff;
-        border: none;
-    }
-    .cta-primary:hover { 
-        filter: brightness(1.06); 
-        color: #fff;
-    }
-    .achievement-badge.blocked {
-        background: linear-gradient(135deg, #f6f7f9, #eef1f6);
-        border-color: rgba(108,117,125,0.2);
-        opacity: 0.95;
-    }
-    .achievement-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
-        flex-shrink: 0;
-    }
     .achievement-icon-btn {
-        cursor: pointer;
-        border: 2px solid rgba(0,0,0,0.06);
-        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        transition: transform 0.2s;
     }
     .achievement-icon-btn:hover {
-        border-color: #6f42c1;
-        box-shadow: 0 0 0 3px rgba(111,66,193,0.2);
+        transform: scale(1.1);
     }
-    .achievement-icon-selected {
-        border-color: #6f42c1 !important;
-        box-shadow: 0 0 0 3px rgba(111,66,193,0.2) !important;
+    
+    /* Scrollbar for achievements */
+    .achievement-scroll {
+        max-height: 300px;
+        overflow-y: auto;
+        padding-right: 5px;
     }
+    .achievement-scroll::-webkit-scrollbar { width: 4px; }
+    .achievement-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* Restored & Modernized Achievement Styles */
     .achievement-row-icons {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         flex-wrap: wrap;
-        align-items: center;
     }
-    .avatar-popover {
-        position: fixed;
-        z-index: 2000;
-        background: #fff;
-        border: 1px solid rgba(0,0,0,0.1);
+    .achievement-icon {
+        width: 48px; height: 48px;
         border-radius: 12px;
-        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-        padding: 10px;
-        display: none;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
     }
-    .achievement-icon.icon-completed {
-        background: radial-gradient(circle at 30% 30%, #ffe082, #ffca28);
-        color: #6f42c1;
+    .achievement-icon.icon-completed { background: linear-gradient(135deg, #fcd34d, #f59e0b); color: #fff; }
+    .achievement-icon.icon-inprogress { background: linear-gradient(135deg, #e9d5ff, #c084fc); color: #7e22ce; }
+    .achievement-icon.icon-blocked { background: #f1f5f9; color: #94a3b8; box-shadow: none; }
+    
+    .achievement-badge {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 8px;
     }
-    .achievement-icon.icon-inprogress {
-        background: radial-gradient(circle at 30% 30%, #d1c4e9, #b39ddb);
-        color: #3f2d7d;
-    }
-    .achievement-icon.icon-blocked {
-        background: radial-gradient(circle at 30% 30%, #e9ecef, #dee2e6);
-        color: #6c757d;
-    }
-    .achievement-label {
-        font-weight: 700;
-        font-size: 0.95rem;
-        color: #212529;
-        line-height: 1.2;
-    }
-    .achievement-badge.next {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .achievement-badge.locked {
-        opacity: 0.95;
-        background: linear-gradient(135deg, #f8f9fa, #eef1f6);
+    .achievement-badge.in-progress { background: #faf5ff; border-color: #e9d5ff; }
+    
+    .count-pill {
+        background: #3b82f6; color: white;
+        font-size: 0.7rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 99px;
     }
     .achievement-progress {
-        height: 8px;
-        border-radius: 6px;
-        background-color: rgba(0,0,0,0.05);
-        margin-top: 6px;
+        height: 6px; border-radius: 99px; background: #e2e8f0;
+        margin-top: 8px; overflow: hidden;
     }
-    .achievement-progress .progress-bar {
-        transition: width 0.6s ease;
-        position: relative;
+    .achievement-progress .progress-bar { border-radius: 99px; }
+    
+    .avatar-popover {
+        position: fixed; z-index: 1050;
+        background: white; padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        display: none;
     }
-    .progress-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.78rem;
-        margin-top: 6px;
-        color: #6c757d;
-    }
-    .state-pill {
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 999px;
-        margin-left: auto;
-    }
-    .state-pill.completed { background-color: #ffc107; color: #212529; }
-    .state-pill.in-progress { background-color: #6f42c1; color: #fff; }
-    .state-pill.blocked { background-color: #adb5bd; color: #212529; }
-    .count-pill {
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background-color: #0d6efd;
-        color: #fff;
-        margin-left: 6px;
-    }
-    .mood-chart-container {
-        position: relative; 
-        height: 200px;
-    }
-    .cta-primary {
-        background: linear-gradient(90deg,#6f42c1,#8b5cf6);
-        border: none;
-        box-shadow: 0 10px 20px rgba(139,92,246,0.28);
-    }
-    .cta-primary:hover {
-        filter: brightness(1.05);
-    }
-    @media (max-width: 576px) {
-        .achievement-grid {
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        }
-        .achievement-label {
-            font-weight: 700;
-        }
-    }
+    
+    .mood-chart-container { position: relative; height: 220px; }
+
 </style>
 
 <div class="container">
@@ -347,7 +377,7 @@
                                     </div>
                                 <?php endif; ?>
                                 <div class="position-absolute top-0 end-0 m-2">
-                                     <span class="badge bg-dark bg-opacity-75 backdrop-blur"><?= htmlspecialchars($book['mood']) ?></span>
+                                     <span class="badge bg-white text-black bg-opacity-75 backdrop-blur"><?= htmlspecialchars($book['mood']) ?></span>
                                 </div>
                             </div>
                             <div class="card-body p-3">
@@ -466,8 +496,8 @@
                 datasets: [{
                     data: data,
                     backgroundColor: colors,
-                    borderColor: '#ffffff',
-                    borderWidth: 6,
+                    borderColor: 'transparent',
+                    borderWidth: 0,
                     hoverOffset: 8
                 }]
             },
@@ -494,6 +524,30 @@
         ctx.textAlign = "center";
         ctx.fillText("Sin datos", 100, 100);
     }
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+    
+    // Dark Mode Toggle
+    const toggleBtn = document.getElementById('darkModeToggle');
+    const body = document.body;
+    const icon = toggleBtn.querySelector('i');
+
+    // Check local storage
+    if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        const isDark = body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
+    });
 </script>
 </body>
 </html>

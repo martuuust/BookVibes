@@ -10,6 +10,7 @@ class YouTubeSearchService
 
     public function searchTracks(array $queries, int $limit = 10, array $preferredArtists = []): array
     {
+        set_time_limit(300);
         $seen = [];
         $candidates = [];
         foreach ($queries as $q) {
