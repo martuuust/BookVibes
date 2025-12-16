@@ -22,36 +22,77 @@ class MoodAnalyzer
         $text = ($bookData['synopsis'] ?? '') . ' ' . implode(' ', $bookData['keywords'] ?? []);
         $text = strtolower($text);
 
-        $mood = 'Neutral';
-        $playlistKeywords = ['pop', 'ambient'];
+        $moodKeywords = [
+            'Romántico' => ['amor', 'romance', 'pasión', 'corazón', 'enamorado', 'cita', 'beso', 'sentimientos', 'deseo', 'ternura', 'felicidad', 'pareja', 'boda', 'destino', 'alma gemela'],
+            'Intriga y Suspenso' => ['misterio', 'crimen', 'oscuro', 'secreto', 'asesinato', 'investigación', 'peligro', 'sospecha', 'terror', 'miedo', 'tensión', 'giro', 'conspiración', 'desaparición', 'persecución'],
+            'Épico y Aventurero' => ['aventura', 'épico', 'viaje', 'héroe', 'batalla', 'reino', 'magia', 'dragón', 'búsqueda', 'exploración', 'descubrimiento', 'desafío', 'guerra', 'profecía', 'leyenda'],
+            'Melancólico' => ['tristeza', 'drama', 'llorar', 'pérdida', 'soledad', 'desesperación', 'nostalgia', 'dolor', 'pena', 'desamor', 'melancolía', 'recuerdo', 'adiós', 'lágrimas', 'sufrimiento'],
+            'Neutral' => [] // Default, will be filled if no specific mood is found
+        ];
 
-        if (str_contains($text, 'misterio') || str_contains($text, 'crimen') || str_contains($text, 'oscuro')) {
-            $mood = 'Intriga y Suspenso';
-            $playlistKeywords = ['jazz noir', 'dark ambient', 'classical tension'];
-        } elseif (str_contains($text, 'amor') || str_contains($text, 'romance') || str_contains($text, 'pasión')) {
-            $mood = 'Romántico';
-            $playlistKeywords = ['acoustic', 'piano ballads', 'slow pop'];
-        } elseif (str_contains($text, 'aventura') || str_contains($text, 'épico') || str_contains($text, 'viaje')) {
-            $mood = 'Épico y Aventurero';
-            $playlistKeywords = ['cinematic orchestral', 'folk rock', 'epic scores'];
-        } elseif (str_contains($text, 'tristeza') || str_contains($text, 'drama') || str_contains($text, 'llorar')) {
-            $mood = 'Melancólico';
-            $playlistKeywords = ['indie folk', 'sad piano', 'ambient rain'];
+        $moodSpecificPlaylistKeywords = [
+            'Romántico' => ['acoustic love songs', 'piano ballads', 'romantic pop', 'indie love', 'soft rock romance'],
+            'Intriga y Suspenso' => ['jazz noir', 'dark ambient', 'classical tension', 'mystery soundtrack', 'thriller score'],
+            'Épico y Aventurero' => ['cinematic orchestral', 'folk rock adventure', 'epic scores', 'heroic themes', 'fantasy soundtrack'],
+            'Melancólico' => ['indie folk sad', 'sad piano instrumental', 'ambient rain music', 'melancholic acoustic', 'heartbreak songs']
+        ];
+
+        foreach ($moodKeywords as $m => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($text, $keyword)) {
+                    $mood = $m;
+                    break 2; // Break from both inner and outer loops
+                }
+            }
         }
+
+        $playlistKeywords = $moodSpecificPlaylistKeywords[$mood] ?? ['ambient study music', 'focus playlist', 'chill lofi'];
 
         $queries = [];
-        $qBase = trim(($bookData['genre'] ?? '') . ' ' . $mood);
-        foreach ($playlistKeywords as $k) {
-            $queries[] = $qBase . ' ' . $k . ' official video';
-            $queries[] = $qBase . ' ' . $k . ' lyrics';
+        $title = $bookData['title'] ?? '';
+        $author = $bookData['author'] ?? '';
+        $genre = $bookData['genre'] ?? '';
+
+        // Base queries combining mood, genre, title, author
+        if (!empty($mood) && $mood !== 'Neutral') {
+            foreach ($playlistKeywords as $pk) {
+                $queries[] = "$mood $pk";
+                if (!empty($title)) $queries[] = "$title $mood $pk";
+                if (!empty($author)) $queries[] = "$author $mood $pk";
+                if (!empty($genre)) $queries[] = "$genre $mood $pk";
+            }
         }
-        $queries[] = ($bookData['title'] ?? '') . ' theme song';
-        $queries[] = ($bookData['author'] ?? '') . ' playlist';
+
+        // More specific queries
+        if (!empty($title)) {
+            $queries[] = "$title soundtrack";
+            $queries[] = "$title theme song";
+            $queries[] = "$title music playlist";
+        }
+        if (!empty($author)) {
+            $queries[] = "$author inspired playlist";
+            $queries[] = "$author writing music";
+        }
+        if (!empty($genre)) {
+            $queries[] = "$genre music playlist";
+            $queries[] = "$genre ambient music";
+        }
+
+        // Add artists from the mood list
         $artists = $this->moodArtists[$mood] ?? $this->moodArtists['Neutral'];
         foreach ($artists as $artist) {
-            $queries[] = $artist . ' ' . $mood . ' official video';
-            $queries[] = $artist . ' ' . ($bookData['genre'] ?? '') . ' lyrics';
+            $queries[] = "$artist $mood songs";
+            $queries[] = "$artist $genre playlist";
+            if (!empty($title)) $queries[] = "$artist inspired by $title";
         }
+
+        // Ensure uniqueness and limit queries to avoid excessive API calls
+        $queries = array_unique($queries);
+        // Shuffle to get a good mix of queries
+        shuffle($queries);
+        // Limit the number of queries sent to YouTube to a reasonable amount, e.g., 20-30
+        $queries = array_slice($queries, 0, 30);
+
         $yt = new YouTubeSearchService();
         $tracks = $yt->searchTracks($queries, 12, $artists);
         if (count($tracks) < 5) {

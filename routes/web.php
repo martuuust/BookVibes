@@ -162,6 +162,12 @@ $router->get('/pro/upgrade', function() {
 $router->get('/pro/activate', function() {
     if (session_status() === PHP_SESSION_NONE) session_start();
     $_SESSION['pro'] = true;
+    $_SESSION['account_type'] = 'Pro';
+
+    if (isset($_SESSION['user_id'])) {
+        $userId = $_SESSION['user_id'];
+        \App\Models\User::updateAccountType($userId, 'Pro');
+    }
     $bookId = isset($_GET['book_id']) ? (int)$_GET['book_id'] : 0;
     $returnUrl = isset($_GET['return']) ? $_GET['return'] : '';
     if ($bookId > 0) {

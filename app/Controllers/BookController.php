@@ -62,6 +62,8 @@ class BookController extends Controller
         @ini_set('default_socket_timeout', '6');
         if (session_status() === PHP_SESSION_NONE) session_start();
         $userId = $_SESSION['user_id'] ?? 0;
+        $accountType = $_SESSION['account_type'] ?? 'Basic'; // Default to Basic if not set
+        $playlistLimit = ($accountType === 'Pro') ? 30 : 5; // 30 songs for Pro, 5 for Basic
 
         $query = $request->getBody()['query'] ?? '';
         
@@ -106,8 +108,8 @@ class BookController extends Controller
         $existingPlaylist = Playlist::getByBookId($bookId);
         if (!$existingPlaylist) {
             $preferredTracks = $moodData['suggested_tracks'] ?? [];
-            $tracks = array_slice($preferredTracks, 0, 5);
-            if (count($tracks) < 5) {
+            $tracks = array_slice($preferredTracks, 0, $playlistLimit);
+            if (count($tracks) < $playlistLimit) {
                 $yt = new YouTubeSearchService();
                 $queries = [];
                 $t = trim($bookData['title'] ?? '');
@@ -125,7 +127,7 @@ class BookController extends Controller
                     $queries[] = $m . ' music';
                 }
                 if (empty($queries)) $queries = ['reading playlist','book theme songs'];
-                $fill = $yt->searchTracks($queries, 10);
+                $fill = $yt->searchTracks($queries, ($accountType === 'Pro') ? 30 : 10);
                 $seen = [];
                 foreach ($tracks as $x) { $seen[mb_strtolower(trim(($x['title'] ?? '').'|'.($x['artist'] ?? '')))] = true; }
                 foreach ($fill as $x) {
@@ -133,7 +135,7 @@ class BookController extends Controller
                     if ($key === '' || isset($seen[$key])) continue;
                     $tracks[] = $x;
                     $seen[$key] = true;
-                    if (count($tracks) >= 5) break;
+                    if (count($tracks) >= $playlistLimit) break;
                 }
             }
             $playlistData = ['mood' => $bookData['mood'], 'suggested_tracks' => $tracks];

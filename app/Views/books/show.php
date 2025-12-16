@@ -14,6 +14,7 @@
         .header-starry { 
             position: relative; 
             background:
+                /* Estrellas existentes */
                 radial-gradient(2px 2px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
                 radial-gradient(1.5px 1.5px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
                 radial-gradient(1.5px 1.5px at 38% 18%, rgba(255,255,255,0.75), transparent 3px),
@@ -24,7 +25,19 @@
                 radial-gradient(1px 1px at 91% 58%, rgba(255,255,255,0.8), transparent 3px),
                 radial-gradient(1px 1px at 30% 80%, rgba(255,255,255,0.7), transparent 3px),
                 radial-gradient(1px 1px at 10% 50%, rgba(255,255,255,0.75), transparent 3px),
-                linear-gradient(180deg, #0b1220 0%, #0d1b2a 45%, #0b141f 100%);
+                /* Nuevas estrellas para mayor densidad */
+                radial-gradient(1.2px 1.2px at 5% 10%, rgba(255,255,255,0.8), transparent 3px),
+                radial-gradient(0.8px 0.8px at 95% 90%, rgba(255,255,255,0.6), transparent 3px),
+                radial-gradient(1.8px 1.8px at 70% 10%, rgba(255,255,255,0.95), transparent 3px),
+                radial-gradient(1px 1px at 40% 90%, rgba(255,255,255,0.7), transparent 3px),
+                radial-gradient(0.9px 0.9px at 15% 75%, rgba(255,255,255,0.8), transparent 3px),
+                radial-gradient(1.3px 1.3px at 80% 5%, rgba(255,255,255,0.9), transparent 3px),
+                radial-gradient(0.7px 0.7px at 25% 40%, rgba(255,255,255,0.65), transparent 3px),
+                radial-gradient(1.6px 1.6px at 55% 85%, rgba(255,255,255,0.9), transparent 3px),
+                radial-gradient(1.1px 1.1px at 5% 90%, rgba(255,255,255,0.7), transparent 3px),
+                radial-gradient(1.4px 1.4px at 90% 40%, rgba(255,255,255,0.85), transparent 3px),
+                /* Fondo más oscuro para resaltar las estrellas */
+                linear-gradient(180deg, #050a13 0%, #070e17 45%, #050a13 100%);
             box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
         .cta-success { background: linear-gradient(90deg,#064e3b,#16a34a); border: none; color: #fff; box-shadow: 0 10px 20px rgba(22,163,74,0.25); }

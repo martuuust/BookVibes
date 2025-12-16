@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(191) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     avatar_icon VARCHAR(50) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    account_type VARCHAR(50) DEFAULT 'Basic'
 );
 
 CREATE TABLE IF NOT EXISTS books (
@@ -15,6 +16,7 @@ CREATE TABLE IF NOT EXISTS books (
     genre VARCHAR(100),
     mood VARCHAR(100), -- Analyzed mood for playlist
     cover_url VARCHAR(255),
+    file_path VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(title, author)
 );
@@ -61,7 +63,7 @@ CREATE TABLE IF NOT EXISTS songs (
 -- Gamification
 CREATE TABLE IF NOT EXISTS achievements (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     points_required INT DEFAULT 0,
     icon_class VARCHAR(50) -- CSS class for icon

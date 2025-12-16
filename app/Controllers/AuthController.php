@@ -18,6 +18,8 @@ class AuthController extends Controller
                 if (session_status() === PHP_SESSION_NONE) session_start();
                 $_SESSION['user_id'] = $user->id;
                 $_SESSION['user_name'] = $user->username;
+                $_SESSION['account_type'] = $user->account_type;
+                $_SESSION['pro'] = ($user->account_type === 'Pro');
                 header('Location: /dashboard');
                 exit;
             }

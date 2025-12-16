@@ -7,6 +7,7 @@ class CharacterGenerator
     private $timeboxStart = 0.0;
     public function generateCharacters(array $bookData): array
     {
+        set_time_limit(300); // Aumentar el tiempo máximo de ejecución a 5 minutos
         $title = $bookData['title'] ?? '';
         if (!$title) return [];
         $this->timeboxStart = microtime(true);
@@ -959,8 +960,8 @@ class CharacterGenerator
                 CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_CONNECTTIMEOUT => 4,
-                CURLOPT_TIMEOUT => 6,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 15,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => false,
                 CURLOPT_USERAGENT => "BookVibes/1.0 (Character Scraper)"
