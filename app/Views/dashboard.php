@@ -9,42 +9,105 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Stars Background -->
+    <div id="stars-container" class="stars"></div>
     
-<nav class="navbar navbar-expand-lg navbar-dark mb-5 sticky-top" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+<nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light mb-5 sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
   <div class="container">
     <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
         <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
             <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
             <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
         </div>
-        <span style="background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);">BookVibes</span>
+        <span id="bookVibesText" class="navbar-brand-text">BookVibes</span>
     </a>
-    <div class="d-flex text-white align-items-center gap-3">
-        <button id="darkModeToggle" class="btn btn-link text-white p-0 border-0" title="Alternar modo oscuro">
-            <i class="bi bi-moon-fill fs-5"></i>
+    <div class="d-flex text-white align-items-center gap-4">
+        <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
+            <i id="darkModeIcon" class="bi bi-moon-fill fs-5"></i>
         </button>
-        <div class="d-none d-md-block text-end lh-1">
+        <div class="d-none d-md-block text-end lh-1 navbar-text-light">
             <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
-            <small class="text-white-50" style="font-size: 0.75rem;">Lector</small>
         </div>
-        <?php if(!empty($pro_enabled)): ?>
+        <?php if($isPro): ?>
             <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
             <a href="/pro/cancel" class="btn btn-outline-light btn-sm" style="font-size: 0.8rem; border-radius: 8px;">Cancelar</a>
         <?php else: ?>
             <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
         <?php endif; ?>
-        <a href="/logout" class="btn btn-danger btn-sm fw-semibold rounded-pill px-3" style="font-size: 0.8rem;">Salir</a>
+        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Cerrar Sesión</a>
     </div>
   </div>
 </nav>
 
 <style>
+        .navbar-light-mode {
+        background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0);
+    }
+    .navbar-dark-mode {
+        background: linear-gradient(to right, #1a202c, #2d3748, #4a5568) !important;
+    }
+    .navbar-brand-text {
+        color: #1a202c; /* Color oscuro para el modo claro */
+    }
+    body.dark-mode .navbar-brand-text {
+        color: #f8fafc; /* Color claro para el modo oscuro */
+    }
+    .light-mode-icon {
+        color: #1a202c; /* Color oscuro para el modo claro */
+    }
+    body.dark-mode .light-mode-icon {
+        color: #f8fafc; /* Color claro para el modo oscuro */
+    }
+    .dark-mode-icon {
+        color: #f8fafc; /* Color claro para el modo oscuro */
+    }
+    body.dark-mode .dark-mode-icon {
+        color: #1a202c; /* Color oscuro para el modo claro */
+    }
+    body.dark-mode .text-white {
+        color: #f8fafc !important;
+    }
+    body.dark-mode .text-white-50 {
+        color: rgba(248, 250, 252, 0.5) !important;
+    }
+    body.dark-mode .btn-outline-light {
+        color: #f8fafc;
+        border-color: #f8fafc;
+    }
+    body.dark-mode .btn-outline-light:hover {
+        background-color: #f8fafc;
+        color: #1a202c;
+    }
+    body.dark-mode .btn-danger {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: #f8fafc !important;
+    }
+    body.dark-mode .btn-danger:hover {
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+    }
+    .navbar-text-light {
+        color: black !important;
+    }
+    body.dark-mode .navbar-text-light {
+        color: white !important;
+    }
+    body:not(.dark-mode) .btn-outline-light {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: transparent !important;
+}
+body:not(.dark-mode) .btn-outline-light:hover {
+    background-color: #c82333 !important;
+    color: white !important;
+}
     :root {
         --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         --card-bg: #ffffff;
         --text-main: #1e293b;
         --text-muted: #64748b;
-        --bg-body: #f8fafc;
+        --bg-body: linear-gradient(135deg,#eef2ff,#ffffff);
         --border-color: rgba(226, 232, 240, 0.8);
     }
     
@@ -52,31 +115,14 @@
         --card-bg: #1e293b;
         --text-main: #f8fafc;
         --text-muted: #94a3b8;
-        --bg-body: 
-            radial-gradient(2px 2px at 5% 15%, rgba(255,255,255,0.8), transparent 3px),
-            radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
-            radial-gradient(1px 1px at 18% 5%, rgba(255,255,255,0.7), transparent 2px),
-            radial-gradient(2px 2px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
-            radial-gradient(1.5px 1.5px at 28% 40%, rgba(255,255,255,0.6), transparent 3px),
-            radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.8), transparent 2px),
-            radial-gradient(2px 2px at 42% 75%, rgba(255,255,255,0.9), transparent 3px),
-            radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
-            radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.6), transparent 2px),
-            radial-gradient(2px 2px at 62% 85%, rgba(255,255,255,0.8), transparent 3px),
-            radial-gradient(1.5px 1.5px at 68% 35%, rgba(255,255,255,0.7), transparent 3px),
-            radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.9), transparent 2px),
-            radial-gradient(2px 2px at 80% 30%, rgba(255,255,255,0.8), transparent 3px),
-            radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,0.6), transparent 3px),
-            radial-gradient(1px 1px at 92% 18%, rgba(255,255,255,0.8), transparent 2px),
-            radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,0.9), transparent 3px),
-            radial-gradient(1.5px 1.5px at 95% 45%, rgba(255,255,255,0.7), transparent 3px),
-            radial-gradient(1px 1px at 8% 90%, rgba(255,255,255,0.6), transparent 2px),
-            radial-gradient(2px 2px at 3% 40%, rgba(255,255,255,0.8), transparent 3px),
-            radial-gradient(1.5px 1.5px at 98% 5%, rgba(255,255,255,0.9), transparent 3px),
-            linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        --bg-body: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
         --border-color: rgba(255, 255, 255, 0.1);
     }
     
+    html, body {
+        height: 100%;
+        min-height: 100vh;
+    }
     body {
         background: var(--bg-body) !important;
         background-attachment: fixed !important;
@@ -89,6 +135,7 @@
     body.dark-mode .bg-light { background-color: #0f172a !important; color: var(--text-main); }
     body.dark-mode .text-muted { color: #94a3b8 !important; }
     body.dark-mode .text-dark { color: #f8fafc !important; }
+    body.dark-mode .badge-mood { color: var(--text-main) !important; }
     body.dark-mode .card { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
     body.dark-mode .list-group-item { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
     body.dark-mode .modal-content { background-color: var(--card-bg); color: var(--text-main); }
@@ -96,6 +143,7 @@
     body.dark-mode .dropdown-item { color: var(--text-main); }
     body.dark-mode .dropdown-item:hover { background-color: rgba(255,255,255,0.1); }
     body.dark-mode .avatar-popover { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
+    body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
 
     .section-title {
         font-weight: 800;
@@ -198,6 +246,67 @@
     .achievement-scroll::-webkit-scrollbar { width: 4px; }
     .achievement-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
+    /* Stars */
+    .stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    #stars-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        pointer-events: none;
+        z-index: -1; /* Asegura que las estrellas estén detrás de todo */
+        overflow: hidden;
+    }
+    .star {
+            position: absolute;
+            background: rgba(99,102,241,0.8); /* Tono azul-morado */
+            border-radius: 50%;
+            opacity: 0.8;
+            box-shadow: 0 0 6px 2px rgba(168,85,247,0.6); /* Sombra morada */
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+    body.dark-mode .star {
+        background: white;
+        box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+    }
+    body:not(.dark-mode) .star {
+        opacity: 0;
+        visibility: hidden;
+    }
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+    }
+    /* Stars */
+    .stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .star {
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+        opacity: 0.8;
+        box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+        animation: twinkle var(--duration) infinite ease-in-out;
+    }
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+    }
     /* Restored & Modernized Achievement Styles */
     .achievement-row-icons {
         display: flex;
@@ -247,7 +356,6 @@
     }
     
     .mood-chart-container { position: relative; height: 220px; }
-
 </style>
 
 <div class="container">
@@ -535,19 +643,66 @@
     const toggleBtn = document.getElementById('darkModeToggle');
     const body = document.body;
     const icon = toggleBtn.querySelector('i');
+    const mainNavbar = document.getElementById('mainNavbar');
+    const bookVibesText = document.getElementById('bookVibesText');
+
+    // Function to apply theme
+    function applyTheme(isDark) {
+        if (isDark) {
+            body.classList.add('dark-mode');
+            icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+            mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
+            mainNavbar.classList.replace('navbar-light', 'navbar-dark');
+            bookVibesText.classList.add('dark-mode-text');
+            icon.classList.add('dark-mode-icon');
+        } else {
+            body.classList.remove('dark-mode');
+            icon.classList.replace('bi-sun-fill', 'bi-moon-fill');
+            mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
+            mainNavbar.classList.replace('navbar-dark', 'navbar-light');
+            bookVibesText.classList.remove('dark-mode-text');
+            icon.classList.remove('dark-mode-icon');
+        }
+    }
 
     // Check local storage
     if (localStorage.getItem('theme') === 'dark') {
-        body.classList.add('dark-mode');
-        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+        applyTheme(true);
+    } else {
+        applyTheme(false); // Apply light mode by default or if not set
     }
 
     toggleBtn.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        const isDark = body.classList.contains('dark-mode');
+        const isDark = !body.classList.contains('dark-mode');
+        applyTheme(isDark);
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
     });
+</script>
+<script>
+    // Generate Stars
+    const starsContainer = document.getElementById('stars-container');
+    const starCount = 300;
+
+    // Set container height to document scroll height
+            starsContainer.style.height = document.body.scrollHeight + 'px';
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100; // X position in percentage
+                const y = Math.random() * 100; // Y position in percentage
+                const size = Math.random() * 2 + 1; // 1px to 3px
+                const duration = Math.random() * 3 + 2; // 2s to 5s
+        
+        star.style.left = x + '%';
+        star.style.top = y + '%';
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.setProperty('--duration', duration + 's');
+        star.style.animationDelay = (Math.random() * 5) + 's';
+        
+        starsContainer.appendChild(star);
+    }
 </script>
 </body>
 </html>

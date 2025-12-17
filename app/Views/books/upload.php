@@ -49,42 +49,73 @@
         body.dark-mode .form-control { background-color: var(--input-bg); color: #f8fafc; border-color: rgba(255,255,255,0.1); }
         body.dark-mode .form-control::placeholder { color: #94a3b8; }
         body.dark-mode .input-group-text { background-color: var(--input-bg); border-color: rgba(255,255,255,0.1); color: #94a3b8; }
+        body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
+
+        /* Stars */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        .navbar-light-mode {
+            background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0);
+            color: #1a202c;
+        }
+        .navbar-dark-mode {
+            background: linear-gradient(to right, #1a202c, #2d3748, #4a5568);
+            color: #e2e8f0;
+        }
+        .navbar-brand-text {
+            color: #1a202c;
+        }
+        .dark-mode .navbar-brand-text {
+            color: #e2e8f0;
+        }
+        .dark-mode-text {
+            color: #e2e8f0 !important;
+        }
+        .dark-mode-icon {
+            color: #e2e8f0 !important;
+        }
     </style>
 </head>
 <body style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;">
 
-<?php 
-// Helper to get user data safely
-$userName = $user_name ?? $_SESSION['user_name'] ?? 'Lector';
-$isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
-?>
+    <div class="stars"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const starsContainer = document.querySelector('.stars');
+            const numStars = 100; // Adjust as needed
 
-<nav class="navbar navbar-expand-lg navbar-dark mb-5 sticky-top" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-  <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
-        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-            <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
-            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
-        </div>
-        <span style="background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);">BookVibes</span>
-    </a>
-    <div class="d-flex text-white align-items-center gap-3">
-            <button id="darkModeToggle" class="btn btn-link text-white p-0 border-0" title="Alternar modo oscuro">
-                <i class="bi bi-moon-fill fs-5"></i>
-            </button>
-            <div class="d-none d-md-block text-end lh-1">
-            <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($userName) ?></span>
-            <small class="text-white-50" style="font-size: 0.75rem;">Lector</small>
-        </div>
-        <?php if($isPro): ?>
-            <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
-        <?php else: ?>
-            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
-        <?php endif; ?>
-        <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Volver</a>
-    </div>
-  </div>
-</nav>
+            for (let i = 0; i < numStars; i++) {
+                let star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 2 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                star.style.setProperty('--duration', `${Math.random() * 3 + 2}s`);
+                starsContainer.appendChild(star);
+            }
+        });
+    </script>
 
 <div class="container mt-4 mb-5">
     <div class="row justify-content-center">
@@ -157,24 +188,49 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     </div>
 </div>
 
-<script>
-    // Dark Mode Toggle
-    const toggleBtn = document.getElementById('darkModeToggle');
-    const body = document.body;
-    const icon = toggleBtn.querySelector('i');
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const body = document.body;
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const mainNavbar = document.getElementById('mainNavbar');
+            const bookVibesText = document.getElementById('bookVibesText');
 
-    // Check local storage
-    if (localStorage.getItem('theme') === 'dark') {
-        body.classList.add('dark-mode');
-        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
-    }
+            // Apply theme on load
+            function applyTheme(isDark) {
+                if (isDark) {
+                    body.classList.add('dark-mode');
+                    darkModeIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+                    mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
+                    mainNavbar.classList.replace('navbar-light', 'navbar-dark');
+                    bookVibesText.classList.add('dark-mode-text');
+                    darkModeToggle.classList.replace('text-dark', 'text-white');
+                } else {
+                    body.classList.remove('dark-mode');
+                    darkModeIcon.classList.replace('bi-sun-fill', 'bi-moon-fill');
+                    mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
+                    mainNavbar.classList.replace('navbar-dark', 'navbar-light');
+                    bookVibesText.classList.remove('dark-mode-text');
+                    darkModeToggle.classList.replace('text-white', 'text-dark');
+                }
+            }
 
-    toggleBtn.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        const isDark = body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
-    });
-</script>
+            // Check local storage for theme preference
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                applyTheme(true);
+            } else {
+                applyTheme(false); // Apply light theme by default or if 'light' is saved
+            }
+
+            // Toggle dark mode
+            darkModeToggle.addEventListener('click', () => {
+                const isDark = body.classList.contains('dark-mode');
+                applyTheme(!isDark);
+                localStorage.setItem('theme', !isDark ? 'dark' : 'light');
+            });
+        });
+    </script>
 </body>
 </html>

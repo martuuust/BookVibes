@@ -50,43 +50,26 @@
             --text-muted: #94a3b8;
             
             /* Page variables (Light by default) */
-            --bg-body: radial-gradient(1200px 600px at 0% 0%, #f0f5ff 10%, #ffffff 60%), linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+            --bg-body:
+                radial-gradient(1200px 600px at 0% 0%, #f0f5ff 10%, #ffffff 60%), linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
             --char-bg: white;
             --text-body: #334155;
         }
 
         body.dark-mode {
-            --bg-body: 
-                radial-gradient(2px 2px at 5% 15%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
-                radial-gradient(1px 1px at 18% 5%, rgba(255,255,255,0.7), transparent 2px),
-                radial-gradient(2px 2px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1.5px 1.5px at 28% 40%, rgba(255,255,255,0.6), transparent 3px),
-                radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.8), transparent 2px),
-                radial-gradient(2px 2px at 42% 75%, rgba(255,255,255,0.9), transparent 3px),
-                radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
-                radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.6), transparent 2px),
-                radial-gradient(2px 2px at 62% 85%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1.5px 1.5px at 68% 35%, rgba(255,255,255,0.7), transparent 3px),
-                radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.9), transparent 2px),
-                radial-gradient(2px 2px at 80% 30%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,0.6), transparent 3px),
-                radial-gradient(1px 1px at 92% 18%, rgba(255,255,255,0.8), transparent 2px),
-                radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,0.9), transparent 3px),
-                radial-gradient(1.5px 1.5px at 95% 45%, rgba(255,255,255,0.7), transparent 3px),
-                radial-gradient(1px 1px at 8% 90%, rgba(255,255,255,0.6), transparent 2px),
-                radial-gradient(2px 2px at 3% 40%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1.5px 1.5px at 98% 5%, rgba(255,255,255,0.9), transparent 3px),
-                linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            --bg-body: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             --char-bg: #1e293b;
             --text-body: #f8fafc;
         }
 
-        body { 
-            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
-            background: var(--bg-body);
-            background-attachment: fixed;
-            color: var(--text-body);
+        html, body {
+            height: 100%;
+            min-height: 100vh;
+        }
+        body {
+            background: var(--bg-body) !important;
+            background-attachment: fixed !important;
+            color: var(--text-main);
             transition: background 0.3s ease, color 0.3s ease;
         }
 
@@ -98,16 +81,30 @@
         body.dark-mode .list-group-item { background-color: var(--char-bg); border-color: rgba(255,255,255,0.1); color: var(--text-body); }
         body.dark-mode .card { background-color: var(--char-bg); color: var(--text-body); }
 
+        body.dark-mode .badge.bg-warning { color: white !important; }
+        body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
+
         /* --- Old Styles for Header & Characters --- */
-        .header-starry { 
-            position: relative; 
-            background:
-                radial-gradient(2px 2px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
-                radial-gradient(1.5px 1.5px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
-                radial-gradient(1px 1px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
-                linear-gradient(180deg, #050a13 0%, #070e17 45%, #050a13 100%);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        .header-starry {
+            position: relative;
             color: white; /* Always white text in starry header */
+        }
+        body.dark-mode .header-starry {
+            background: linear-gradient(180deg, #050a13 0%, #070e17 45%, #050a13 100%);
+        }
+        body:not(.dark-mode) .header-starry {
+            background: white; /* Fondo blanco puro */
+            color: white; /* Color de texto blanco para el efecto neón */
+        }
+        body:not(.dark-mode) .header-starry h1 {
+            text-shadow:
+                0 0 5px #8A2BE2, /* Morado oscuro */
+                0 0 10px #00BFFF, /* Azul */
+                0 0 15px #FF1493; /* Rosa */
+        }
+        body:not(.dark-mode) .header-starry p {
+            color: black; /* Nombre del autor en negro */
+            text-shadow: none; /* Sin efecto neón */
         }
         .character-card { transition: transform 0.2s; background: var(--char-bg); border: 1px solid rgba(0,0,0,0.05); }
         .character-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
@@ -198,6 +195,36 @@
         }
         .playlist-track:hover { background: rgba(255, 255, 255, 0.03); }
         
+        /* Stars */
+        #stars-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            z-index: -1; /* Asegura que las estrellas estén detrás de todo */
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            background: rgba(99,102,241,0.8); /* Tono azul-morado */
+            border-radius: 50%;
+            opacity: 0.8;
+            box-shadow: 0 0 6px 2px rgba(168,85,247,0.6); /* Sombra morada */
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+        body.dark-mode .star {
+            background: white;
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+        }
+        body:not(.dark-mode) .star {
+            opacity: 0;
+            visibility: hidden;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
         .btn-listen {
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-main);
@@ -223,42 +250,137 @@
         .btn-primary-glow:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); color: white; }
         .btn-spotify { background: #1db954; border: none; color: white; font-weight: 600; }
         .btn-spotify:hover { background: #1ed760; color: white; }
+        .navbar-light-mode {
+            background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0);
+        }
+        .navbar-dark-mode {
+            background: linear-gradient(to right, #1a202c, #2d3748, #4a5568) !important;
+        }
+        .navbar-brand-text {
+            color: #1a202c; /* Light mode color */
+        }
+        body.dark-mode .navbar-brand-text {
+            color: #f8fafc; /* Dark mode color */
+        }
+        body.dark-mode #darkModeIcon {
+            color: #f8fafc !important;
+        }
+        .navbar-text-light {
+            color: black !important;
+        }
+        body.dark-mode .navbar-text-light {
+            color: white !important;
+        }
+        body:not(.dark-mode) .btn-outline-light {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: transparent !important;
+}
+body:not(.dark-mode) .btn-outline-light:hover {
+    background-color: #c82333 !important;
+    color: white !important;
+}
     </style>
 </head>
 <body>
-
+    <div id="stars-container"></div>
 <?php 
 $userName = $user_name ?? $_SESSION['user_name'] ?? 'Lector';
 $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 ?>
 
 <!-- Old Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background: rgba(5, 10, 19, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05);">
+<nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
   <div class="container">
     <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
         <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
             <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
             <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
         </div>
-        <span style="background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);">BookVibes</span>
+        <span id="bookVibesText" class="navbar-brand-text">BookVibes</span>
     </a>
-    <div class="d-flex text-white align-items-center gap-3">
-            <button id="darkModeToggle" class="btn btn-link text-white p-0 border-0" title="Alternar modo oscuro">
-                <i class="bi bi-moon-fill fs-5"></i>
+    <div class="d-flex align-items-center gap-4">
+            <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
+                <i id="darkModeIcon" class="bi bi-moon-fill fs-5"></i>
             </button>
-            <div class="d-none d-md-block text-end lh-1">
+            <div class="d-none d-md-block text-end lh-1 navbar-text-light">
             <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($userName) ?></span>
-            <small class="text-white-50" style="font-size: 0.75rem;">Lector</small>
         </div>
         <?php if($isPro): ?>
             <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
         <?php else: ?>
             <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
         <?php endif; ?>
-        <a href="/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Volver</a>
+        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Cerrar Sesión</a>
     </div>
   </div>
 </nav>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+
+            const toggleBtn = document.getElementById('darkModeToggle');
+            const body = document.body;
+            const icon = toggleBtn.querySelector('i');
+            const mainNavbar = document.getElementById('mainNavbar');
+            const bookVibesText = document.getElementById('bookVibesText');
+
+            function applyTheme(isDark) {
+                if (isDark) {
+                    document.body.classList.add('dark-mode');
+                    icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+                    mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
+                    mainNavbar.classList.replace('navbar-light', 'navbar-dark');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    icon.classList.replace('bi-sun-fill', 'bi-moon-fill');
+                    mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
+                    mainNavbar.classList.replace('navbar-dark', 'navbar-light');
+                }
+            }
+
+            // Apply theme on load
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
+                applyTheme(true);
+            } else {
+                applyTheme(false);
+            }
+
+            toggleBtn.addEventListener('click', () => {
+                const isDark = !document.body.classList.contains('dark-mode');
+                applyTheme(isDark);
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            });
+
+            // Generate Stars
+            const starsContainer = document.getElementById('stars-container');
+            const starCount = 300;
+
+            // Set container height to document scroll height
+            starsContainer.style.height = document.body.scrollHeight + 'px';
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100; // X position in percentage
+                const y = (Math.random() * document.body.scrollHeight / starsContainer.offsetHeight) * 100; // Y position in percentage relative to container height
+                const size = Math.random() * 2 + 1; // 1px to 3px
+                const duration = Math.random() * 3 + 2; // 2s to 5s
+                
+                star.style.left = x + '%';
+                star.style.top = y + '%';
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.setProperty('--duration', duration + 's');
+                star.style.animationDelay = (Math.random() * 5) + 's';
+                
+                starsContainer.appendChild(star);
+            }
+        });
+    </script>
 
 <div class="container-fluid p-0">
     <!-- Old Header with Mood Color -->
@@ -439,27 +561,34 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Dark Mode Toggle
-    const toggleBtn = document.getElementById('darkModeToggle');
-    const body = document.body;
-    const icon = toggleBtn.querySelector('i');
 
-    // Check local storage
-    if (localStorage.getItem('theme') === 'dark') {
-        body.classList.add('dark-mode');
-        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
-    }
-
-    toggleBtn.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        const isDark = body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
-    });
 
     // Handle vinyl play
     let currentAudio = null;
     let currentVinyl = null;
 </script>
-</body>
+<script>
+            // Generate Stars
+            const starsContainer = document.getElementById('stars-container');
+            const starCount = 300;
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const size = Math.random() * 2 + 1; // 1px to 3px
+                const duration = Math.random() * 3 + 2; // 2s to 5s
+                
+                star.style.left = x + '%';
+                star.style.top = y + '%';
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.setProperty('--duration', duration + 's');
+                star.style.animationDelay = (Math.random() * 5) + 's';
+                
+                starsContainer.appendChild(star);
+            }
+        </script>
+    </body>
 </html>

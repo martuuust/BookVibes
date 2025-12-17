@@ -47,7 +47,7 @@ class BookController extends Controller
             'stats' => $stats,
             'mood_stats' => $moodStats,
             'avatar_icon' => $avatarIcon,
-            'pro_enabled' => !empty($_SESSION['pro']) && $_SESSION['pro']
+            'isPro' => !empty($_SESSION['pro']) && $_SESSION['pro']
         ]);
     }
 

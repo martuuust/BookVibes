@@ -49,6 +49,7 @@
             background: white;
             border-radius: 50%;
             opacity: 0.8;
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
             animation: twinkle var(--duration) infinite ease-in-out;
         }
         @keyframes twinkle {
@@ -80,7 +81,7 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 1);
             animation: orbit linear infinite;
         }
         @keyframes orbit {

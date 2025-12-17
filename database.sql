@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS songs (
     title VARCHAR(255) NOT NULL,
     artist VARCHAR(255),
     url VARCHAR(255), -- YouTube or Spotify link
-    FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+    FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+    UNIQUE(playlist_id, title, artist)
 );
 
 -- Gamification

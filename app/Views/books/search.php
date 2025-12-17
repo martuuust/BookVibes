@@ -51,17 +51,72 @@
         body.dark-mode .form-control { background-color: var(--input-bg); color: #f8fafc; border-color: rgba(255,255,255,0.1); }
         body.dark-mode .form-control::placeholder { color: #94a3b8; }
         body.dark-mode .input-group-text { background-color: var(--input-bg); border-color: rgba(255,255,255,0.1); color: #94a3b8; }
+        body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
+
+        /* Stars */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.8;
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        .navbar-light-mode {
+            background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0);
+            color: #1a202c;
+        }
+        .navbar-dark-mode {
+            background: linear-gradient(to right, #1a202c, #2d3748, #4a5568);
+            color: #e2e8f0;
+        }
+        .navbar-brand-text {
+            color: #1a202c;
+        }
+        .dark-mode .navbar-brand-text {
+            color: #e2e8f0;
+        }
+        .dark-mode-text {
+            color: #e2e8f0 !important;
+        }
+        .dark-mode-icon {
+            color: #e2e8f0 !important;
+        }
     </style>
 </head>
 <body style="font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; min-height: 100vh; display: flex; align-items: center;">
+    <div class="stars"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const starsContainer = document.querySelector('.stars');
+            const numStars = 100; // Adjust as needed
 
-<?php 
-// Helper to get user data safely
-$userName = $user_name ?? $_SESSION['user_name'] ?? 'Lector';
-$isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
-?>
-
-<!-- Navbar removed as per user request -->
+            for (let i = 0; i < numStars; i++) {
+                let star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = `${Math.random() * 2 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                star.style.setProperty('--duration', `${Math.random() * 3 + 2}s`);
+                starsContainer.appendChild(star);
+            }
+        });
+    </script>
 
 <div class="container">
     <div class="row justify-content-center">
@@ -117,12 +172,5 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         </div>
     </div>
 </div>
-
-<script>
-    // Check local storage for Dark Mode preference
-    if (localStorage.getItem('theme') === 'dark') {
-        document.body.classList.add('dark-mode');
-    }
-</script>
 </body>
 </html>
