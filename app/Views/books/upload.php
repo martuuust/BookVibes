@@ -123,6 +123,11 @@
             <div class="card shadow-lg border-0 overflow-hidden" style="border-radius: 24px;">
                 <!-- Card Header -->
                 <div class="p-5 text-center text-white" style="background: radial-gradient(ellipse at bottom, #0f172a 0%, #334155 100%); position: relative;">
+                    <!-- Back Button -->
+                    <a href="/dashboard" class="position-absolute top-0 start-0 m-3 text-white-50 text-decoration-none d-flex align-items-center gap-2" style="z-index: 10;">
+                        <i class="bi bi-arrow-left fs-5"></i>
+                        <span class="small fw-semibold">Volver</span>
+                    </a>
                     <i class="bi bi-cloud-upload display-1 mb-3 text-white-50"></i>
                     <h2 class="mb-2 fw-bold position-relative">Subir Libro</h2>
                     <p class="text-white-50 mb-0 position-relative">Sube tus archivos PDF, EPUB o MOBI.</p>
@@ -192,44 +197,26 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const body = document.body;
-            const darkModeToggle = document.getElementById('darkModeToggle');
-            const darkModeIcon = document.getElementById('darkModeIcon');
-            const mainNavbar = document.getElementById('mainNavbar');
-            const bookVibesText = document.getElementById('bookVibesText');
 
             // Apply theme on load
             function applyTheme(isDark) {
                 if (isDark) {
                     body.classList.add('dark-mode');
-                    darkModeIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
-                    mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
-                    mainNavbar.classList.replace('navbar-light', 'navbar-dark');
-                    bookVibesText.classList.add('dark-mode-text');
-                    darkModeToggle.classList.replace('text-dark', 'text-white');
                 } else {
                     body.classList.remove('dark-mode');
-                    darkModeIcon.classList.replace('bi-sun-fill', 'bi-moon-fill');
-                    mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
-                    mainNavbar.classList.replace('navbar-dark', 'navbar-light');
-                    bookVibesText.classList.remove('dark-mode-text');
-                    darkModeToggle.classList.replace('text-white', 'text-dark');
                 }
             }
 
             // Check local storage for theme preference
             const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
+            // Check system preference if no saved theme
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
                 applyTheme(true);
             } else {
-                applyTheme(false); // Apply light theme by default or if 'light' is saved
+                applyTheme(false);
             }
-
-            // Toggle dark mode
-            darkModeToggle.addEventListener('click', () => {
-                const isDark = body.classList.contains('dark-mode');
-                applyTheme(!isDark);
-                localStorage.setItem('theme', !isDark ? 'dark' : 'light');
-            });
         });
     </script>
 </body>

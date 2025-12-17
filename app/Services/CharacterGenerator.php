@@ -13,7 +13,9 @@ class CharacterGenerator
         $this->timeboxStart = microtime(true);
         $cacheKey = $this->cacheKey($title, $bookData['author'] ?? '');
         $cached = $this->cacheGet($cacheKey);
-        if ($cached) return $cached;
+        if ($cached) {
+            return $cached;
+        }
         $characters = $this->extractCharactersFromWikipedia($title);
         if (count($characters) < 3) {
             $external = $this->extractCharactersFromExternalSources($title, $bookData['author'] ?? '');
@@ -68,8 +70,12 @@ class CharacterGenerator
     private function extractCharactersFromWikipedia(string $title): array
     {
         $page = $this->wikiFindPage($title, 'es');
-        if (!$page) $page = $this->wikiFindPage($title, 'en');
-        if (!$page) return [];
+        if (!$page) {
+             $page = $this->wikiFindPage($title, 'en');
+        }
+        if (!$page) {
+             return [];
+        }
         $chars = $this->wikiGetCharactersSection($page['title'], $page['lang']);
         if (!empty($chars)) return $chars;
         // Try dedicated list pages if main article has no character section
@@ -85,12 +91,16 @@ class CharacterGenerator
         $queries = [
             $title . " novela",
             $title . " novel",
+            $title . " (book)",
+            $title . " (libro)",
             $title
         ];
         foreach ($queries as $q) {
             $url = "https://{$lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=" . urlencode($q) . "&format=json";
             $json = $this->fetchUrl($url);
-            if (!$json) continue;
+            if (!$json) {
+                continue;
+            }
             $data = json_decode($json, true);
             if (!empty($data['query']['search'][0]['title'])) {
                 return ['title' => $data['query']['search'][0]['title'], 'lang' => $lang];
@@ -621,14 +631,20 @@ class CharacterGenerator
 
     private function normalizeCharactersList(array $chars): array
     {
+        // 1. Exact Match Deduplication
         $map = [];
         foreach ($chars as $c) {
             $name = isset($c['name']) ? trim($c['name']) : '';
             if ($name === '' || !$this->isValidCharacterName($name)) continue;
-            $key = $this->mbLower($name);
+            
+            // Cleanup common prefixes
+            $nameClean = preg_replace('/^(Characters in|List of|Personajes de|Lista de)\s+/i', '', $name);
+            $nameClean = trim($nameClean, " \t\n\r\0\x0B-–—:");
+
+            $key = $this->mbLower($nameClean);
             if (!isset($map[$key])) {
                 $map[$key] = [
-                    'name' => $name,
+                    'name' => $nameClean,
                     'description' => $c['description'] ?? '',
                     'url' => $c['url'] ?? '',
                     'lang' => $c['lang'] ?? '',
@@ -641,7 +657,35 @@ class CharacterGenerator
                 $map[$key]['source_count'] = ($map[$key]['source_count'] ?? 1) + 1;
             }
         }
-        $list = array_values($map);
+        
+        // 2. Fuzzy Deduplication (Substrings)
+        // Sort by name length descending to prioritize full names
+        uasort($map, function($a, $b) {
+            return strlen($b['name']) <=> strlen($a['name']);
+        });
+        
+        $finalMap = [];
+        foreach ($map as $key => $data) {
+            $merged = false;
+            foreach ($finalMap as $fKey => $fData) {
+                // Check if current name is contained in an existing name (e.g. "Harry" in "Harry Potter")
+                // Use word boundaries to avoid "Ron" matching "Aaron"
+                $pattern = '/\b' . preg_quote($key, '/') . '\b/u';
+                if (preg_match($pattern, $fKey)) {
+                    // Merge into existing (longer) entry
+                    $finalMap[$fKey]['description'] = $this->coherentMerge($finalMap[$fKey]['description'], $data['description']);
+                    $finalMap[$fKey]['source_count'] += $data['source_count'];
+                    if (empty($finalMap[$fKey]['url'])) $finalMap[$fKey]['url'] = $data['url'];
+                    $merged = true;
+                    break;
+                }
+            }
+            if (!$merged) {
+                $finalMap[$key] = $data;
+            }
+        }
+
+        $list = array_values($finalMap);
         if (count($list) > 20) $list = array_slice($list, 0, 20);
         return $list;
     }
@@ -660,7 +704,11 @@ class CharacterGenerator
                 strpos($line, 'personajes') !== false ||
                 strpos($line, 'protagonistas') !== false ||
                 strpos($line, 'characters') !== false ||
-                strpos($line, 'main characters') !== false
+                strpos($line, 'main characters') !== false ||
+                strpos($line, 'cast') !== false ||
+                strpos($line, 'reparto') !== false ||
+                strpos($line, 'papeles') !== false ||
+                strpos($line, 'roles') !== false
             ) {
                 $index = $s['index'];
                 break;
@@ -818,7 +866,7 @@ class CharacterGenerator
         $opts = [
             "http" => [
                 "method" => "GET",
-                "header" => "User-Agent: BookVibes/1.0 (Character Scraper)\r\n",
+                "header" => "User-Agent: BookVibes/1.0 (http://example.com/contact)\r\n",
                 "timeout" => 6
             ],
             "ssl" => [
@@ -834,7 +882,7 @@ class CharacterGenerator
             if ($now - $last < 0.2) {
                 usleep((int)((0.2 - ($now - $last)) * 1e6));
             }
-            $resp = @file_get_contents($url, false, $context);
+            $resp = file_get_contents($url, false, $context);
             $last = microtime(true);
             if ($resp !== false && strlen($resp) > 0) {
                 $cache[$url] = $resp;

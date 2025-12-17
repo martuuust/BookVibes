@@ -14,28 +14,32 @@
     
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light mb-5 sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
   <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
-        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-            <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
-            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.8rem;">
+        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+            <i class="bi bi-book-half" style="font-size: 2.5rem; color: #8b5cf6;"></i>
+            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 1.2rem; top: 10px; right: 5px; transform: rotate(15deg);"></i>
         </div>
-        <span id="bookVibesText" class="navbar-brand-text">BookVibes</span>
+        <span id="bookVibesText" class="navbar-brand-text" style="font-size: 1.5rem;">BookVibes</span>
     </a>
-    <div class="d-flex text-white align-items-center gap-4">
-        <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
-            <i id="darkModeIcon" class="bi bi-moon-fill fs-5"></i>
-        </button>
-        <div class="d-none d-md-block text-end lh-1 navbar-text-light">
-            <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
+    <div class="d-flex text-white align-items-center gap-2 gap-md-4">
+            <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
+                <i id="darkModeIcon" class="bi bi-moon-fill fs-4"></i>
+            </button>
+            <div class="d-none d-md-block text-end lh-1 navbar-text-light">
+                <span class="d-block fw-semibold" style="font-size: 1.1rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
+            </div>
+            <?php if($isPro): ?>
+                <a href="/pro/settings" class="text-decoration-none">
+                    <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 1rem; cursor: pointer;">Pro</span>
+                </a>
+            <?php else: ?>
+                <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 1rem;">Básica</span>
+            <?php endif; ?>
+            <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3 px-md-4 py-2" style="font-size: 1rem;">
+                <span class="d-none d-md-inline">Cerrar Sesión</span>
+                <i class="bi bi-box-arrow-right d-md-none"></i>
+            </a>
         </div>
-        <?php if($isPro): ?>
-            <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
-            <a href="/pro/cancel" class="btn btn-outline-light btn-sm" style="font-size: 0.8rem; border-radius: 8px;">Cancelar</a>
-        <?php else: ?>
-            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
-        <?php endif; ?>
-        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Cerrar Sesión</a>
-    </div>
   </div>
 </nav>
 
@@ -71,12 +75,14 @@
         color: rgba(248, 250, 252, 0.5) !important;
     }
     body.dark-mode .btn-outline-light {
-        color: #f8fafc;
-        border-color: #f8fafc;
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
     }
     body.dark-mode .btn-outline-light:hover {
-        background-color: #f8fafc;
-        color: #1a202c;
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+        color: white !important;
     }
     body.dark-mode .btn-danger {
         background-color: #dc3545 !important;
@@ -91,6 +97,9 @@
         color: black !important;
     }
     body.dark-mode .navbar-text-light {
+        color: white !important;
+    }
+    body.dark-mode .book-cover-container .badge {
         color: white !important;
     }
     body:not(.dark-mode) .btn-outline-light {

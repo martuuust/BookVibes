@@ -8,6 +8,7 @@ class MoodAnalyzer
         'Romántico' => ['Taylor Swift','Olivia Rodrigo','Ed Sheeran','Ariana Grande','Lewis Capaldi','Shawn Mendes','Sam Smith','Lana Del Rey','Sabrina Carpenter','SZA'],
         'Intriga y Suspenso' => ['Billie Eilish','Halsey','The Weeknd','Lorde','Banks','Grimes','Florence + The Machine','Sevdaliza','Lana Del Rey','Aurora'],
         'Épico y Aventurero' => ['Imagine Dragons','Sia','The Weeknd','Coldplay','Zayn','OneRepublic','Linkin Park','Kendrick Lamar','Post Malone','Thirty Seconds To Mars'],
+        'Fantasía' => ['Howard Shore','Hans Zimmer','Ramin Djawadi','Enya','Loreena McKennitt','Two Steps From Hell','Audiomachine','Jeremy Soule','Bear McCreary','John Williams'],
         'Melancólico' => ['Phoebe Bridgers','Bon Iver','Billie Eilish','The National','Hozier','James Blake','Daughter','Keaton Henson','Noah Kahan','Adele'],
         'Neutral' => ['Dua Lipa','Harry Styles','Doja Cat','Bad Bunny','Karol G','Rosalía','Feid','Peso Pluma','Rauw Alejandro','J Balvin']
     ];
@@ -37,6 +38,7 @@ class MoodAnalyzer
             'Melancólico' => ['indie folk sad', 'sad piano instrumental', 'ambient rain music', 'melancholic acoustic', 'heartbreak songs']
         ];
 
+        $mood = 'Neutral';
         foreach ($moodKeywords as $m => $keywords) {
             foreach ($keywords as $keyword) {
                 if (str_contains($text, $keyword)) {
@@ -103,6 +105,8 @@ class MoodAnalyzer
                 $extra = ['romantic ballads', 'love songs acoustic', 'piano love themes'];
             } elseif ($mood === 'Épico y Aventurero') {
                 $extra = ['epic orchestral', 'adventure soundtrack', 'heroic themes'];
+            } elseif ($mood === 'Fantasía') {
+                $extra = ['fantasy movie soundtrack', 'magical themes', 'epic fantasy score'];
             } elseif ($mood === 'Melancólico') {
                 $extra = ['sad songs indie', 'melancholic ambient', 'piano melancholy'];
             } else {

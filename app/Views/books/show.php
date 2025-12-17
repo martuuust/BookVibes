@@ -81,30 +81,60 @@
         body.dark-mode .list-group-item { background-color: var(--char-bg); border-color: rgba(255,255,255,0.1); color: var(--text-body); }
         body.dark-mode .card { background-color: var(--char-bg); color: var(--text-body); }
 
-        body.dark-mode .badge.bg-warning { color: white !important; }
-        body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
+        body.dark-mode .btn-outline-light {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    body.dark-mode .btn-outline-light:hover {
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+        color: white !important;
+    }
+    body.dark-mode .book-header .badge {
+        color: white !important;
+    }
 
         /* --- Old Styles for Header & Characters --- */
-        .header-starry {
-            position: relative;
-            color: white; /* Always white text in starry header */
+        .book-header { 
+            position: relative; 
+            padding-top: 3rem;
+            padding-bottom: 3rem;
         }
-        body.dark-mode .header-starry {
-            background: linear-gradient(180deg, #050a13 0%, #070e17 45%, #050a13 100%);
+        .book-title-glow {
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 0 10px rgba(167, 139, 250, 1), 0 0 20px rgba(167, 139, 250, 0.5);
+            /* Ensure visibility on light backgrounds via the glow */
         }
-        body:not(.dark-mode) .header-starry {
-            background: white; /* Fondo blanco puro */
-            color: white; /* Color de texto blanco para el efecto neón */
+        .back-nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1e293b;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            border: 1px solid rgba(0,0,0,0.05);
         }
-        body:not(.dark-mode) .header-starry h1 {
-            text-shadow:
-                0 0 5px #8A2BE2, /* Morado oscuro */
-                0 0 10px #00BFFF, /* Azul */
-                0 0 15px #FF1493; /* Rosa */
+        body.dark-mode .back-nav {
+            background: rgba(30, 41, 59, 0.8);
+            color: #f8fafc;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
         }
-        body:not(.dark-mode) .header-starry p {
-            color: black; /* Nombre del autor en negro */
-            text-shadow: none; /* Sin efecto neón */
+        .back-nav:hover {
+            transform: translateX(-4px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            color: inherit;
         }
         .character-card { transition: transform 0.2s; background: var(--char-bg); border: 1px solid rgba(0,0,0,0.05); }
         .character-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
@@ -292,26 +322,28 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 <!-- Old Navbar -->
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
   <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.5rem;">
-        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-            <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
-            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);"></i>
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.8rem;">
+        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+            <i class="bi bi-book-half" style="font-size: 2.5rem; color: #8b5cf6;"></i>
+            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 1.2rem; top: 10px; right: 5px; transform: rotate(15deg);"></i>
         </div>
-        <span id="bookVibesText" class="navbar-brand-text">BookVibes</span>
+        <span id="bookVibesText" class="navbar-brand-text" style="font-size: 1.5rem;">BookVibes</span>
     </a>
     <div class="d-flex align-items-center gap-4">
             <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
-                <i id="darkModeIcon" class="bi bi-moon-fill fs-5"></i>
+                <i id="darkModeIcon" class="bi bi-moon-fill fs-4"></i>
             </button>
             <div class="d-none d-md-block text-end lh-1 navbar-text-light">
-            <span class="d-block fw-semibold" style="font-size: 0.9rem;">Hola, <?= htmlspecialchars($userName) ?></span>
+            <span class="d-block fw-semibold" style="font-size: 1.1rem;">Hola, <?= htmlspecialchars($userName) ?></span>
         </div>
         <?php if($isPro): ?>
-            <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6;">Pro</span>
+            <a href="/pro/settings" class="text-decoration-none">
+                <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 1rem; cursor: pointer;">Pro</span>
+            </a>
         <?php else: ?>
-            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25">Básica</span>
+            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 1rem;">Básica</span>
         <?php endif; ?>
-        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3" style="font-size: 0.8rem;">Cerrar Sesión</a>
+        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-4 py-2" style="font-size: 1rem;">Cerrar Sesión</a>
     </div>
   </div>
 </nav>
@@ -384,9 +416,12 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
 <div class="container-fluid p-0">
     <!-- Old Header with Mood Color -->
-    <div class="text-white p-5 text-center header-starry">
-        <h1 class="display-4 fw-bold mb-3"><?= htmlspecialchars($book['title']) ?></h1>
-        <p class="lead mb-4 opacity-75">por <?= htmlspecialchars($book['author']) ?></p>
+    <div class="p-5 text-center book-header">
+        <a href="/dashboard" class="back-nav">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <h1 class="display-4 fw-bold mb-3 book-title-glow"><?= htmlspecialchars($book['title']) ?></h1>
+        <p class="lead mb-4 opacity-75" style="color: var(--text-body);">por <?= htmlspecialchars($book['author']) ?></p>
         <span class="badge bg-warning text-black fs-6 px-4 py-2 rounded-pill shadow-sm"><?= htmlspecialchars($book['mood']) ?></span>
     </div>
 </div>
@@ -484,7 +519,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         </div>
 
         <!-- Characters Col (Old Design) -->
-        <div class="col-md-8">
+        <div class="col-md-8 order-1 order-md-2">
             <div class="card shadow-sm mb-4 border-0">
                 <div class="card-body">
                     <h5>Sinopsis</h5>
@@ -546,7 +581,6 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                 <div class="col-md-7">
                                     <div class="card-body">
                                         <h5 class="card-title"><?= htmlspecialchars($char['name']) ?></h5>
-                                        <small class="text-muted">Personaje Principal</small>
                                     </div>
                                 </div>
                             </div>

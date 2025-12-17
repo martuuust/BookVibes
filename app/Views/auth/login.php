@@ -186,13 +186,23 @@
         a:hover { color: #c4b5fd; }
         
         .icon-header {
-            font-size: 3rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-            display: inline-block;
+            width: 80px;
+            height: 80px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
+            margin-bottom: 1.5rem;
+            font-size: 4rem; 
+        }
+        .icon-header i.bi-book-half {
+            color: white;
+            -webkit-text-fill-color: white;
+        }
+        .icon-header i.bi-music-note-beamed, 
+        .icon-header i.bi-music-note {
+            color: #2dd4bf;
+            -webkit-text-fill-color: #2dd4bf;
         }
 
     </style>

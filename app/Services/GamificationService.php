@@ -20,7 +20,7 @@ class GamificationService
             ['Bibliófilo','Completa 100 libros',3200,'bi-trophy-fill'],
             ['Bibliotecario','Añade 10 libros',120,'bi-journal-plus'],
             ['Coleccionista','Añade 25 libros',300,'bi-archive'],
-            ['Explorador de Géneros','Lee 5 géneros distintos',200,'bi-grid'],
+            ['Explorador de Géneros','Lee libros de 5 géneros diferentes',500,'bi-compass'],
             ['Trilogía','Completa 3 libros',180,'bi-bookmark-star'],
             ['Saga Máxima','Completa 20 libros',1200,'bi-bookmark-check'],
             ['Creador de Playlists','Crea 3 playlists',60,'bi-collection-play'],
@@ -48,7 +48,10 @@ class GamificationService
             }
         }
         foreach ($list as $row) {
-            $db->query("UPDATE achievements SET icon_class = ? WHERE name = ?", [$row[3], $row[0]]);
+            $db->query(
+                "UPDATE achievements SET description = ?, points_required = ?, icon_class = ? WHERE name = ?",
+                [$row[1], $row[2], $row[3], $row[0]]
+            );
         }
     }
 

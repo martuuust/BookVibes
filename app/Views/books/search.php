@@ -115,6 +115,25 @@
                 star.style.setProperty('--duration', `${Math.random() * 3 + 2}s`);
                 starsContainer.appendChild(star);
             }
+
+            // Dark Mode Logic
+            const body = document.body;
+            function applyTheme(isDark) {
+                if (isDark) {
+                    body.classList.add('dark-mode');
+                } else {
+                    body.classList.remove('dark-mode');
+                }
+            }
+            
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                applyTheme(true);
+            } else {
+                applyTheme(false);
+            }
         });
     </script>
 

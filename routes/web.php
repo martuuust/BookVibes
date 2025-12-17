@@ -460,6 +460,181 @@ $router->get('/pro/activate', function() {
     exit;
 });
 
+$router->get('/pro/settings', function() {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $userName = $_SESSION['user_name'] ?? 'Lector';
+    $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+    
+    if (!$isPro) {
+        header('Location: /pro/upgrade');
+        exit;
+    }
+
+    return '<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mi Suscripción - BookVibes</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+                --text-main: #1e293b;
+                --text-muted: #64748b;
+                --card-bg: #ffffff;
+                --card-border: #e2e8f0;
+                --bg-body: #f8fafc;
+            }
+            body.dark-mode {
+                --text-main: #f8fafc;
+                --text-muted: #94a3b8;
+                --card-bg: #1e293b;
+                --card-border: rgba(255, 255, 255, 0.1);
+                --bg-body: 
+                    radial-gradient(2px 2px at 5% 15%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 12% 28%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1px 1px at 18% 5%, rgba(255,255,255,0.7), transparent 2px),
+                    radial-gradient(2px 2px at 22% 65%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 28% 40%, rgba(255,255,255,0.6), transparent 3px),
+                    radial-gradient(1px 1px at 35% 12%, rgba(255,255,255,0.8), transparent 2px),
+                    radial-gradient(2px 2px at 42% 75%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 48% 52%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 55% 25%, rgba(255,255,255,0.6), transparent 2px),
+                    radial-gradient(2px 2px at 62% 85%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 68% 35%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.9), transparent 2px),
+                    radial-gradient(2px 2px at 80% 30%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 85% 60%, rgba(255,255,255,0.6), transparent 3px),
+                    radial-gradient(1px 1px at 92% 18%, rgba(255,255,255,0.8), transparent 2px),
+                    radial-gradient(2px 2px at 90% 80%, rgba(255,255,255,0.9), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 95% 45%, rgba(255,255,255,0.7), transparent 3px),
+                    radial-gradient(1px 1px at 8% 90%, rgba(255,255,255,0.6), transparent 2px),
+                    radial-gradient(2px 2px at 3% 40%, rgba(255,255,255,0.8), transparent 3px),
+                    radial-gradient(1.5px 1.5px at 98% 5%, rgba(255,255,255,0.9), transparent 3px),
+                    linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            }
+            body { 
+                font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
+                background: var(--bg-body);
+                background-attachment: fixed;
+                color: var(--text-main);
+                min-height: 100vh;
+                transition: background 0.3s ease, color 0.3s ease;
+            }
+            .settings-card {
+                background: var(--card-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 24px;
+                color: var(--text-main);
+                box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+            }
+            .text-main { color: var(--text-main); }
+            .text-muted-custom { color: var(--text-muted); }
+            
+            .modal-content {
+                background: var(--card-bg);
+                color: var(--text-main);
+                border: 1px solid var(--card-border);
+            }
+            .modal-header, .modal-footer {
+                border-color: var(--card-border);
+            }
+            .btn-close {
+                filter: invert(var(--close-invert));
+            }
+            body.dark-mode { --close-invert: 1; }
+            body:not(.dark-mode) { --close-invert: 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container d-flex flex-column justify-content-center min-vh-100 py-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="settings-card shadow-lg overflow-hidden">
+                        <div class="card-header bg-transparent border-0 pt-5 px-5 pb-0 text-center">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px; background: rgba(139, 92, 246, 0.1); border-radius: 50%;">
+                                <i class="bi bi-stars" style="font-size: 2.5rem; color: #8b5cf6;"></i>
+                            </div>
+                            <h2 class="fw-bold mb-1">Tu Suscripción</h2>
+                            <span class="badge bg-gradient px-3 py-2 rounded-pill fs-6 mt-2" style="background-color: #8b5cf6;">Plan Pro Activo</span>
+                        </div>
+                        <div class="card-body p-5">
+                            <div class="mb-5">
+                                <h6 class="fw-bold mb-3 text-uppercase small text-muted-custom" style="letter-spacing: 0.5px;">Beneficios Activos</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-3 d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                                        <span class="fw-medium">Canciones ilimitadas en tus playlists</span>
+                                    </li>
+                                    <li class="mb-3 d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                                        <span class="fw-medium">Generación de personajes con IA</span>
+                                    </li>
+                                    <li class="mb-3 d-flex align-items-center">
+                                        <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                                        <span class="fw-medium">Acceso prioritario a nuevas funciones</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 rounded-4 mb-4" style="background-color: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.1);">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted-custom small fw-bold text-uppercase">Próxima facturación</span>
+                                    <span class="fw-bold">17 Enero, 2026</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted-custom small fw-bold text-uppercase">Monto</span>
+                                    <span class="fw-bold">6,04 € / mes</span>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-3">
+                                <a href="/dashboard" class="btn btn-outline-secondary py-3 rounded-3 fw-bold border-2">Volver al Dashboard</a>
+                                <button type="button" class="btn btn-link text-danger text-decoration-none small mt-2" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                    Cancelar Suscripción
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4">
+                    <div class="modal-body p-5 text-center">
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center" style="width: 70px; height: 70px; background: rgba(220, 53, 69, 0.1); border-radius: 50%;">
+                                <i class="bi bi-emoji-frown display-4 text-danger"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold mb-3">¿Seguro que quieres irte?</h3>
+                        <p class="text-muted-custom mb-4">Perderás acceso inmediato a las funciones Pro y tus playlists generadas podrían limitarse. ¡Te echaremos de menos!</p>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-light py-3 rounded-3 fw-bold" data-bs-dismiss="modal">Mantener mi plan</button>
+                            <a href="/pro/cancel" class="btn btn-danger py-3 rounded-3 fw-bold">Sí, cancelar suscripción</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Check local storage for theme
+            if (localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+                document.body.classList.add("dark-mode");
+            }
+        </script>
+    </body>
+    </html>';
+});
+
 $router->get('/pro/cancel', function() {
     if (session_status() === PHP_SESSION_NONE) session_start();
     
