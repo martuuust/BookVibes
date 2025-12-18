@@ -19,9 +19,13 @@ class Playlist
 
         // Insert Songs
         foreach ($data['suggested_tracks'] as $track) {
+            $isAi = isset($track['is_ai_generated']) ? 1 : 0;
+            $lyrics = $track['lyrics'] ?? null;
+            $melody = $track['melody_description'] ?? null;
+            
             $db->query(
-                "INSERT INTO songs (playlist_id, title, artist, url) VALUES (?, ?, ?, ?)",
-                [$playlistId, $track['title'], $track['artist'], $track['url']]
+                "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [$playlistId, $track['title'], $track['artist'], $track['url'], $isAi, $lyrics, $melody]
             );
         }
         
@@ -34,7 +38,8 @@ class Playlist
         $playlist = $db->query("SELECT * FROM playlists WHERE book_id = ?", [$bookId])->fetch();
         
         if ($playlist) {
-            $songs = $db->query("SELECT * FROM songs WHERE playlist_id = ?", [$playlist['id']])->fetchAll();
+            // Sort by is_ai_generated DESC so AI songs appear first
+            $songs = $db->query("SELECT * FROM songs WHERE playlist_id = ? ORDER BY is_ai_generated DESC, id ASC", [$playlist['id']])->fetchAll();
             $playlist['songs'] = $songs;
         }
         

@@ -9,6 +9,7 @@ use App\Services\ScraperService;
 use App\Services\MoodAnalyzer;
 use App\Services\CharacterGenerator;
 use App\Services\YouTubeSearchService;
+use App\Services\AISongGeneratorService;
 use App\Models\Book;
 use App\Models\Character;
 use App\Models\Playlist;
@@ -138,6 +139,15 @@ class BookController extends Controller
                     if (count($tracks) >= $playlistLimit) break;
                 }
             }
+            
+            // Generate AI Original Songs for Pro Users
+            if ($accountType === 'Pro') {
+                $aiGen = new AISongGeneratorService();
+                $aiSongs = $aiGen->generateSongs($bookData);
+                // Add to the beginning of the playlist
+                $tracks = array_merge($aiSongs, $tracks);
+            }
+
             $playlistData = ['mood' => $bookData['mood'], 'suggested_tracks' => $tracks];
             Playlist::create($bookId, $playlistData);
         }
@@ -260,6 +270,47 @@ class BookController extends Controller
         
         // Ensure songs exist if previous creation failed
         $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+
+        // AUTO-GENERATE AI SONGS FOR PRO USERS (Retroactive Fix)
+        if ($isPro && $playlist) {
+            $hasAiSongs = false;
+            foreach ($playlist['songs'] as $s) {
+                if (!empty($s['is_ai_generated'])) {
+                    $hasAiSongs = true;
+                    break;
+                }
+            }
+            
+            if (!$hasAiSongs) {
+                try {
+                    $aiGen = new AISongGeneratorService();
+                    // We need book array with title, author, mood, synopsis
+                    // $book is already fetched above
+                    $aiSongs = $aiGen->generateSongs($book);
+                    
+                    $db = \App\Core\Database::getInstance();
+                    foreach ($aiSongs as $song) {
+                        $db->query(
+                            "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            [
+                                $playlist['id'], 
+                                $song['title'], 
+                                $song['artist'], 
+                                $song['url'], 
+                                1, 
+                                $song['lyrics'], 
+                                $song['melody_description']
+                            ]
+                        );
+                    }
+                    // Re-fetch playlist to show new songs immediately
+                    $playlist = Playlist::getByBookId($id);
+                } catch (\Throwable $e) {
+                    // Fail silently or log
+                }
+            }
+        }
+
         if (!$playlist || empty($playlist['songs'])) {
             try {
                 $yt = new YouTubeSearchService();
