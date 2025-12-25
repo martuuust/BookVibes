@@ -13,13 +13,9 @@
     <div id="stars-container" class="stars"></div>
     
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light mb-5 sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
-  <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.8rem;">
-        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-            <i class="bi bi-book-half" style="font-size: 2.5rem; color: #8b5cf6;"></i>
-            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 1.2rem; top: 10px; right: 5px; transform: rotate(15deg);"></i>
-        </div>
-        <span id="bookVibesText" class="navbar-brand-text" style="font-size: 1.5rem;">BookVibes</span>
+  <div class="container-fluid px-4 px-md-5">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard">
+        <img src="/logo.png" alt="BookVibes" class="navbar-logo">
     </a>
     <div class="d-flex text-white align-items-center gap-2 gap-md-4">
             <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
@@ -322,6 +318,18 @@ body:not(.dark-mode) .btn-outline-light:hover {
         gap: 12px;
         flex-wrap: wrap;
     }
+    .navbar-brand {
+        padding: 0;
+    }
+    .navbar-logo {
+        height: 80px;
+        width: auto;
+        mix-blend-mode: multiply;
+    }
+    body.dark-mode .navbar-logo {
+        filter: invert(1);
+        mix-blend-mode: screen;
+    }
     .achievement-icon {
         width: 48px; height: 48px;
         border-radius: 12px;
@@ -367,8 +375,8 @@ body:not(.dark-mode) .btn-outline-light:hover {
     .mood-chart-container { position: relative; height: 220px; }
 </style>
 
-<div class="container">
-    <div class="row g-4">
+<div class="container-fluid px-4 px-md-5">
+        <div class="row g-4">
         <!-- Gamification Sidebar -->
         <div class="col-lg-3">
             <div class="card shadow-sm border-0 mb-4">
@@ -653,7 +661,6 @@ body:not(.dark-mode) .btn-outline-light:hover {
     const body = document.body;
     const icon = toggleBtn.querySelector('i');
     const mainNavbar = document.getElementById('mainNavbar');
-    const bookVibesText = document.getElementById('bookVibesText');
 
     // Function to apply theme
     function applyTheme(isDark) {
@@ -662,14 +669,12 @@ body:not(.dark-mode) .btn-outline-light:hover {
             icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
             mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
             mainNavbar.classList.replace('navbar-light', 'navbar-dark');
-            bookVibesText.classList.add('dark-mode-text');
             icon.classList.add('dark-mode-icon');
         } else {
             body.classList.remove('dark-mode');
             icon.classList.replace('bi-sun-fill', 'bi-moon-fill');
             mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
             mainNavbar.classList.replace('navbar-dark', 'navbar-light');
-            bookVibesText.classList.remove('dark-mode-text');
             icon.classList.remove('dark-mode-icon');
         }
     }

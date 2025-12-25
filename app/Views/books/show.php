@@ -97,6 +97,29 @@
     body.dark-mode .book-header .badge {
         color: white !important;
     }
+    
+    .navbar-brand {
+        padding: 0;
+    }
+    .navbar-logo {
+        height: 80px;
+        width: auto;
+        mix-blend-mode: multiply;
+    }
+    body.dark-mode .navbar-logo {
+        filter: invert(1);
+        mix-blend-mode: screen;
+    }
+    .transition-hover {
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .transition-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+    }
+    .transition-hover:hover img {
+        transform: scale(1.05);
+    }
 
         /* --- Old Styles for Header & Characters --- */
         .book-header { 
@@ -110,23 +133,31 @@
             text-shadow: 0 0 10px rgba(167, 139, 250, 1), 0 0 20px rgba(167, 139, 250, 0.5);
             /* Ensure visibility on light backgrounds via the glow */
         }
+        
+        /* Darker shadow for light mode to improve visibility */
+        body:not(.dark-mode) .book-title-glow {
+            text-shadow: 0 0 10px rgba(124, 58, 237, 1), 0 0 20px rgba(124, 58, 237, 0.8), 0 0 30px rgba(124, 58, 237, 0.6);
+        }
+
         .back-nav {
             position: fixed;
-            top: 90px;
+            top: 100px;
             left: 20px;
-            z-index: 1000;
-            display: inline-flex;
+            z-index: 9999;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: 99px;
+            justify-content: center;
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            border-radius: 50%;
             background: rgba(255, 255, 255, 0.9);
             color: #1e293b;
             text-decoration: none;
-            font-weight: 600;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transition: all 0.2s;
             border: 1px solid rgba(0,0,0,0.05);
+            font-size: 1.2rem;
         }
         body.dark-mode .back-nav {
             background: rgba(30, 41, 59, 0.8);
@@ -137,7 +168,10 @@
         .back-nav:hover {
             transform: translateX(-4px);
             box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-            color: inherit;
+            color: #1e293b;
+        }
+        body.dark-mode .back-nav:hover {
+            color: #f8fafc;
         }
         .character-card { transition: transform 0.2s; background: var(--char-bg); border: 1px solid rgba(0,0,0,0.05); }
         .character-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
@@ -389,13 +423,9 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
 <!-- Old Navbar -->
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
-  <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="/dashboard" style="letter-spacing: -0.5px; font-size: 1.8rem;">
-        <div class="position-relative d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-            <i class="bi bi-book-half" style="font-size: 2.5rem; color: #8b5cf6;"></i>
-            <i class="bi bi-music-note-beamed position-absolute" style="color: #2dd4bf; font-size: 1.2rem; top: 10px; right: 5px; transform: rotate(15deg);"></i>
-        </div>
-        <span id="bookVibesText" class="navbar-brand-text" style="font-size: 1.5rem;">BookVibes</span>
+  <div class="container-fluid px-4 px-md-5">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard">
+        <img src="/logo.png" alt="BookVibes" class="navbar-logo">
     </a>
     <div class="d-flex align-items-center gap-4">
             <button id="darkModeToggle" class="btn btn-link p-0 border-0" title="Alternar modo oscuro">
@@ -423,7 +453,6 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
             const body = document.body;
             const icon = toggleBtn.querySelector('i');
             const mainNavbar = document.getElementById('mainNavbar');
-            const bookVibesText = document.getElementById('bookVibesText');
 
             function applyTheme(isDark) {
                 if (isDark) {
@@ -482,8 +511,8 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 <div class="container-fluid p-0">
     <!-- Old Header with Mood Color -->
     <div class="p-5 text-center book-header">
-        <a href="/dashboard" class="back-nav">
-            <i class="bi bi-arrow-left"></i> Volver
+        <a href="/dashboard" class="back-nav" aria-label="Volver">
+            <i class="bi bi-arrow-left"></i>
         </a>
         <h1 class="display-4 fw-bold mb-3 book-title-glow"><?= htmlspecialchars($book['title']) ?></h1>
         <p class="lead mb-4 opacity-75" style="color: var(--text-body);">por <?= htmlspecialchars($book['author']) ?></p>
@@ -491,7 +520,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     </div>
 </div>
 
-<div class="container mt-4">
+<div class="container-fluid px-4 px-md-5 mt-4">
     <div class="row">
         <!-- Playlist Col (Dynamic Height) -->
         <div class="col-md-4 mb-4">
@@ -503,8 +532,8 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                     <?php endif; ?>
                 </div>
                 
-                <div class="p-0">
-                    <?php if($playlist && isset($playlist['songs'])): ?>
+                <div class="p-0" id="playlist-container">
+                    <?php if($playlist && !empty($playlist['songs'])): ?>
                         <!-- Vinyl Trigger -->
                         <div class="visual-album-container text-center" onclick="document.getElementById('full-playlist').classList.toggle('show');">
                             <div class="vinyl-record">
@@ -522,9 +551,15 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                 <?php 
                                     $limit = $isPro ? PHP_INT_MAX : 7;
                                     $i = 0;
+                                    $aiCount = 0;
                                     foreach($playlist['songs'] as $song): 
                                         if($i++ >= $limit) break; 
                                         $isAi = !empty($song['is_ai_generated']);
+                                        $variation = 0;
+                                        if ($isAi) {
+                                            $variation = $aiCount % 2;
+                                            $aiCount++;
+                                        }
                                 ?>
                                     <div class="playlist-track <?= $isAi ? 'ai-track' : '' ?>">
                                         <div class="d-flex justify-content-between align-items-center">
@@ -542,7 +577,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                             </div>
                                             
                                             <?php if($isAi): ?>
-                                                 <button type="button" class="btn-listen" onclick='playAiTrack(<?= json_encode($song['title']) ?>, <?= json_encode($song['lyrics'] ?? '') ?>, <?= json_encode($song['melody_description'] ?? '') ?>, <?= json_encode($book['mood'] ?? 'Misterio') ?>, <?= $song['variation'] ?? 0 ?>)'>
+                                                 <button type="button" class="btn-listen" onclick='playAiTrack(<?= json_encode($song['title']) ?>, <?= json_encode($song['lyrics'] ?? '') ?>, <?= json_encode($song['melody_description'] ?? '') ?>, <?= json_encode($book['mood'] ?? 'Misterio') ?>, <?= $variation ?>)'>
                                                     <i class="bi bi-play-fill"></i>
                                                 </button>
                                             <?php else: ?>
@@ -618,16 +653,17 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                             </div>
                         </div>
                     <?php else: ?>
-                        <div class="p-4 text-center text-muted">
-                            <i class="bi bi-music-note-beamed fs-1 d-block mb-2 opacity-25"></i>
-                            No hay playlist disponible.
+                        <div id="playlist-loader" class="p-5 text-center">
+                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                            <h6 class="text-white">Componiendo banda sonora...</h6>
+                            <p class="text-white-50 small">Analizando emociones y buscando canciones perfectas</p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
 
-        <!-- Characters Col (Old Design) -->
+        <!-- Characters Col -->
         <div class="col-md-8 order-1 order-md-2">
             <div class="card shadow-sm mb-4 border-0">
                 <div class="card-body">
@@ -635,12 +671,59 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                     <p class="text-muted"><?= htmlspecialchars($book['synopsis']) ?></p>
                 </div>
             </div>
-            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-                <h3 class="mb-0">Cartas de Personajes</h3>
-                <?php if(!$isPro): ?>
-                    <span class="badge bg-dark bg-opacity-25 border border-secondary border-opacity-25 text-muted"><i class="bi bi-lock-fill me-1"></i> Pro</span>
-                <?php endif; ?>
-            </div>
+
+            <!-- Generation UI (Pro Only) -->
+            <?php if($isPro): ?>
+                <div id="char-gen-ui" class="mb-4 d-none">
+                    <div class="card border-0 bg-dark bg-opacity-10 p-4 rounded-4" style="backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-magic me-2 text-primary"></i>Generar Nuevo Personaje</h5>
+                            <button onclick="hideCharGen()" class="btn btn-sm btn-link text-muted p-0"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        
+                        <!-- Step 1: Loading List -->
+                        <div id="char-list-loader" class="text-center py-4">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <h6 class="fw-normal">Consultando fuentes oficiales...</h6>
+                            <p class="small text-muted mb-0">Buscando personajes en Wikipedia, Fandom y Goodreads</p>
+                        </div>
+
+                        <!-- Step 2: Selection -->
+                        <div id="char-selection-area" class="d-none">
+                            <div class="mb-3" id="char-select-container">
+                                <label class="form-label small text-muted text-uppercase fw-bold">Personaje</label>
+                                <select id="char-select" class="form-select form-select-lg" onchange="updateCharPreview()">
+                                    <option value="">-- Selecciona un personaje --</option>
+                                </select>
+                            </div>
+                            
+                            <div id="char-manual-container" class="mb-3 d-none">
+                                <label class="form-label small text-muted text-uppercase fw-bold">Nombre del Personaje</label>
+                                <input type="text" id="char-manual-input" class="form-control form-control-lg" placeholder="Ej: Harry Potter" oninput="updateManualPreview()">
+                                <div class="form-text text-white-50 small"><i class="bi bi-info-circle me-1"></i>No encontramos una lista oficial. Escribe el nombre manualmente.</div>
+                            </div>
+                            
+                            <div id="char-desc-preview" class="p-3 rounded-3 bg-white bg-opacity-10 mb-3 d-none">
+                                <small class="d-block text-muted mb-1">Descripción detectada:</small>
+                                <p class="mb-0 fst-italic small" id="char-desc-text"></p>
+                            </div>
+
+                            <div class="d-grid">
+                                <button id="btn-create-char" class="btn btn-primary btn-lg" onclick="generateSelectedChar()" disabled>
+                                    <i class="bi bi-stars me-2"></i>Generar con IA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Generating -->
+                        <div id="char-generating-loader" class="d-none text-center py-4">
+                            <div class="spinner-border text-purple mb-3" role="status" style="color: #a855f7;"></div>
+                            <h6 class="fw-normal">Imaginando personaje...</h6>
+                            <p class="small text-muted mb-0">Analizando rasgos y generando retrato fiel</p>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <div class="position-relative">
                 <?php if(!$isPro): ?>
@@ -660,42 +743,62 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                     </div>
                 <?php endif; ?>
 
-                <div class="row <?= !$isPro ? 'blur-content' : '' ?>">
-                    <?php if (empty($characters)): ?>
-                        <?php if(!$isPro): // Fake placeholders if empty but locked ?>
-                             <?php for($i=0; $i<4; $i++): ?>
-                                <div class="col-md-6 mb-4">
-                                    <div class="card character-card h-100 border-0 shadow-sm">
-                                        <div class="row g-0 h-100">
-                                            <div class="col-md-5 bg-secondary"></div>
-                                            <div class="col-md-7"><div class="card-body"></div></div>
-                                        </div>
-                                    </div>
-                                </div>
-                             <?php endfor; ?>
-                        <?php else: ?>
-                            <div class="col-12">
-                                <div class="alert alert-info">No hay información suficiente para mostrar personajes de fuentes verificables.</div>
+                <!-- Empty State Trigger (Pro Only, No Characters) -->
+                <?php if($isPro && empty($characters)): ?>
+                    <div id="char-empty-state" class="text-center py-5">
+                        <div class="mb-4">
+                            <div style="width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                <i class="bi bi-person-badge text-primary display-4"></i>
                             </div>
+                        </div>
+                        <h4 class="fw-bold mb-3">Personajes de la Historia</h4>
+                        <p class="text-muted mb-4">Aún no has generado ningún personaje. ¡Empieza ahora!</p>
+                        <button onclick="showCharGen()" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg transition-hover">
+                            <i class="bi bi-magic me-2"></i>Generar Personajes
+                        </button>
+                    </div>
+                <?php endif; ?>
+
+                <div id="characters-section" class="<?= ($isPro && empty($characters)) ? 'd-none' : '' ?>">
+                    <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-2">
+                        <h3 class="mb-0 fw-bold">Personajes</h3>
+                        <?php if($isPro): ?>
+                            <button onclick="showCharGen()" class="btn btn-sm btn-outline-primary rounded-pill px-3 transition-hover">
+                                <i class="bi bi-plus-lg me-1"></i>Generar
+                            </button>
                         <?php endif; ?>
-                    <?php endif; ?>
-                    
-                    <?php foreach($characters as $char): ?>
-                    <div class="col-md-6 mb-4">
-                        <div class="card character-card h-100 border-0 shadow-sm">
-                            <div class="row g-0 h-100">
-                                <div class="col-md-5">
-                                    <img src="<?= htmlspecialchars($char['image_url']) ?>" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="<?= htmlspecialchars($char['name']) ?>">
-                                </div>
-                                <div class="col-md-7">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?= htmlspecialchars($char['name']) ?></h5>
+                    </div>
+
+                    <div class="row <?= !$isPro ? 'blur-content' : '' ?>" id="characters-list">
+                        <?php foreach($characters as $char): ?>
+                        <div class="col-md-6 mb-4">
+                            <div class="card character-card h-100 border-0 shadow-sm">
+                                <div class="row g-0 h-100">
+                                    <div class="col-md-5">
+                                        <img src="<?= htmlspecialchars($char['image_url']) ?>" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="<?= htmlspecialchars($char['name']) ?>">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="card-body">
+                                            <h5 class="card-title"><?= htmlspecialchars($char['name']) ?></h5>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <?php endforeach; ?>
+                        
+                        <?php if(!$isPro): ?>
+                            <?php for($i=0; $i<4; $i++): ?>
+                            <div class="col-md-6 mb-4">
+                                <div class="card character-card h-100 border-0 shadow-sm" style="min-height: 200px;">
+                                    <div class="card-body d-flex align-items-center justify-content-center">
+                                        <span class="text-muted">Contenido Bloqueado</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endfor; ?>
+                        <?php endif; ?>
                     </div>
-                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -705,6 +808,210 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 
+
+    // Global variables for Character Generation
+    let fetchedCharacters = [];
+    const BOOK_ID = <?= json_encode($book['id']) ?>;
+
+    function showCharGen() {
+        const ui = document.getElementById('char-gen-ui');
+        ui.classList.remove('d-none');
+        
+        // Reset state
+        document.getElementById('char-list-loader').classList.remove('d-none');
+        document.getElementById('char-selection-area').classList.add('d-none');
+        document.getElementById('char-generating-loader').classList.add('d-none');
+        document.getElementById('char-select').innerHTML = '<option value="">-- Selecciona un personaje --</option>';
+        document.getElementById('btn-create-char').disabled = true;
+        document.getElementById('char-desc-preview').classList.add('d-none');
+        
+        const existingMsg = document.getElementById('char-manual-msg');
+        if (existingMsg) existingMsg.remove();
+        
+        // Reset manual input
+        document.getElementById('char-manual-input').value = '';
+        document.getElementById('char-select-container').classList.remove('d-none');
+        document.getElementById('char-manual-container').classList.add('d-none');
+
+        // Fetch List
+        fetch('/books/fetch-character-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                fetchedCharacters = data.list.filter(c => c.name && c.name.trim().length > 0);
+                const select = document.getElementById('char-select');
+                
+                document.getElementById('char-list-loader').classList.add('d-none');
+                document.getElementById('char-selection-area').classList.remove('d-none');
+
+                if (fetchedCharacters.length === 0) {
+                    // Switch to Manual Mode
+                    document.getElementById('char-select-container').classList.add('d-none');
+                    document.getElementById('char-manual-container').classList.remove('d-none');
+                    
+                    if (data.total_found > 0 && data.already_added_count > 0) {
+                         const msg = document.createElement('div');
+                         msg.id = 'char-manual-msg';
+                         msg.className = 'alert alert-info small mt-2';
+                         msg.innerHTML = '<i class="bi bi-info-circle me-1"></i>Todos los personajes encontrados ya han sido generados.';
+                         document.getElementById('char-manual-container').prepend(msg);
+                    }
+                } else {
+                    // Populate Select
+                    select.disabled = false;
+                    fetchedCharacters.forEach((char, index) => {
+                        const opt = document.createElement('option');
+                        opt.value = index;
+                        opt.text = char.name + (char.source_count > 1 ? ` (${char.source_count} fuentes)` : '');
+                        select.add(opt);
+                    });
+                }
+            } else {
+                // Error fallback -> Manual Mode
+                console.warn('API Error:', data.error);
+                document.getElementById('char-list-loader').classList.add('d-none');
+                document.getElementById('char-selection-area').classList.remove('d-none');
+                document.getElementById('char-select-container').classList.add('d-none');
+                document.getElementById('char-manual-container').classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            // Network Error fallback -> Manual Mode
+            document.getElementById('char-list-loader').classList.add('d-none');
+            document.getElementById('char-selection-area').classList.remove('d-none');
+            document.getElementById('char-select-container').classList.add('d-none');
+            document.getElementById('char-manual-container').classList.remove('d-none');
+        });
+    }
+
+    function hideCharGen() {
+        document.getElementById('char-gen-ui').classList.add('d-none');
+    }
+
+    function updateCharPreview() {
+        const index = document.getElementById('char-select').value;
+        const previewBox = document.getElementById('char-desc-preview');
+        const descText = document.getElementById('char-desc-text');
+        const btn = document.getElementById('btn-create-char');
+
+        if (index === "" || !fetchedCharacters[index]) {
+            previewBox.classList.add('d-none');
+            btn.disabled = true;
+            return;
+        }
+
+        const char = fetchedCharacters[index];
+        if (char.description) {
+            descText.textContent = char.description.substring(0, 150) + (char.description.length > 150 ? '...' : '');
+            previewBox.classList.remove('d-none');
+        } else {
+            previewBox.classList.add('d-none');
+        }
+        btn.disabled = false;
+    }
+
+    function updateManualPreview() {
+        const val = document.getElementById('char-manual-input').value.trim();
+        const btn = document.getElementById('btn-create-char');
+        btn.disabled = (val.length < 2);
+    }
+
+    function generateSelectedChar() {
+        const isManual = !document.getElementById('char-manual-container').classList.contains('d-none');
+        let charData = null;
+
+        if (isManual) {
+            const name = document.getElementById('char-manual-input').value.trim();
+            if (name.length < 2) return;
+            charData = { name: name, description: '' };
+        } else {
+            const index = document.getElementById('char-select').value;
+            if (index === "" || !fetchedCharacters[index]) return;
+            charData = fetchedCharacters[index];
+        }
+        
+        document.getElementById('char-selection-area').classList.add('d-none');
+        document.getElementById('char-generating-loader').classList.remove('d-none');
+
+        fetch('/books/generate-single-character', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                book_id: BOOK_ID,
+                character: charData
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                addCharacterToGrid(data.character);
+                // Reset UI to allow another generation
+                document.getElementById('char-generating-loader').classList.add('d-none');
+                document.getElementById('char-selection-area').classList.remove('d-none');
+                
+                if (!isManual) {
+                    // Remove generated char from dropdown
+                    const select = document.getElementById('char-select');
+                    select.remove(select.selectedIndex);
+                    select.value = "";
+                    updateCharPreview();
+                    
+                    // If list empty
+                    if (select.options.length <= 1) {
+                        // Switch to manual if list exhausted
+                        document.getElementById('char-select-container').classList.add('d-none');
+                        document.getElementById('char-manual-container').classList.remove('d-none');
+                    }
+                } else {
+                    document.getElementById('char-manual-input').value = '';
+                    updateManualPreview();
+                }
+            } else {
+                alert('Error generando personaje: ' + (data.error || 'Inténtalo de nuevo'));
+                document.getElementById('char-generating-loader').classList.add('d-none');
+                document.getElementById('char-selection-area').classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error de conexión');
+            document.getElementById('char-generating-loader').classList.add('d-none');
+            document.getElementById('char-selection-area').classList.remove('d-none');
+        });
+    }
+
+    function addCharacterToGrid(char) {
+        const list = document.getElementById('characters-list');
+        const noMsg = document.getElementById('no-chars-msg');
+        if (noMsg) noMsg.remove();
+
+        const col = document.createElement('div');
+        col.className = 'col-md-6 mb-4 fade-in-up'; // Add animation class if available
+        col.innerHTML = `
+            <div class="card character-card h-100 border-0 shadow-sm">
+                <div class="row g-0 h-100">
+                    <div class="col-md-5">
+                        <img src="${char.image_url}" class="img-fluid rounded-start h-100" style="object-fit: cover; min-height: 200px;" alt="${char.name}">
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">${char.name}</h5>
+                            <p class="card-text small text-muted line-clamp-3">${char.description || 'Sin descripción'}</p>
+                            <div class="mt-2">
+                                ${(char.traits || []).slice(0,3).map(t => `<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        list.prepend(col);
+    }
 
     // Handle vinyl play
     let currentAudio = null;
@@ -1201,5 +1508,154 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 }
             }
         </script>
-    </body>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const bookId = <?= json_encode($book['id']) ?>;
+    const isPro = <?= json_encode($isPro) ?>;
+
+    // Playlist Generation
+    const playlistLoader = document.getElementById('playlist-loader');
+    if (playlistLoader) {
+        fetch('/books/generate-playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok && data.playlist && data.playlist.songs && data.playlist.songs.length > 0) {
+                const songs = data.playlist.songs;
+                const limit = isPro ? 999 : 7;
+                let html = '';
+                
+                // Vinyl Trigger
+                html += `
+                <div class="visual-album-container text-center" onclick="document.getElementById('full-playlist').classList.toggle('show');">
+                    <div class="vinyl-record">
+                        <div class="vinyl-label">
+                            ${(data.playlist.mood || 'Vibes').substring(0, 10)}
+                        </div>
+                    </div>
+                    <h6 class="mt-4 mb-1 fw-bold text-white">Playlist Generada</h6>
+                    <p class="small text-white-50 mb-0">${songs.length} Pistas • Tocar para ver</p>
+                </div>
+                <div id="full-playlist">
+                    <div class="list-group list-group-flush">
+                `;
+
+                let aiCount = 0;
+                songs.forEach((song, index) => {
+                    if (index >= limit) return;
+                    const isAi = !!song.is_ai_generated;
+                    const variation = isAi ? (aiCount++ % 2) : 0;
+                    const aiClass = isAi ? 'ai-track' : '';
+                    const aiBadge = isAi ? '<span class="badge bg-primary me-1" style="font-size: 0.6em; vertical-align: middle;">AI ORIGINAL</span>' : '';
+                    const melodyDesc = isAi ? `<small class="text-info d-block" style="font-size: 0.75em;">${song.melody_description || ''}</small>` : '';
+                    
+                    let playBtn = '';
+                    if (isAi) {
+                        const safeTitle = JSON.stringify(song.title).replace(/'/g, "&#39;");
+                        const safeLyrics = JSON.stringify(song.lyrics || '').replace(/'/g, "&#39;");
+                        const safeMelody = JSON.stringify(song.melody_description || '').replace(/'/g, "&#39;");
+                        const safeMood = JSON.stringify(data.playlist.mood || 'General').replace(/'/g, "&#39;");
+                        playBtn = `<button type="button" class="btn-listen" onclick='playAiTrack(${safeTitle}, ${safeLyrics}, ${safeMelody}, ${safeMood}, ${variation})'><i class="bi bi-play-fill"></i></button>`;
+                    } else {
+                         const safeUrl = (song.url || '').replace(/'/g, "\\'");
+                         const safeTitle = (song.title || '').replace(/'/g, "\\'");
+                         const safeArtist = (song.artist || '').replace(/'/g, "\\'");
+                         playBtn = `<button type="button" class="btn-listen" onclick="playYouTubeTrack('${safeUrl}', '${safeTitle}', '${safeArtist}')"><i class="bi bi-play-fill"></i></button>`;
+                    }
+
+                    html += `
+                    <div class="playlist-track ${aiClass}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="me-3 overflow-hidden">
+                                <div class="fw-semibold text-truncate">
+                                    ${aiBadge} ${song.title}
+                                </div>
+                                <small class="text-muted text-truncate d-block">${song.artist}</small>
+                                ${melodyDesc}
+                            </div>
+                            ${playBtn}
+                        </div>
+                    </div>`;
+                });
+
+                html += `</div>`; // Close list-group
+                
+                // Add Pro/Upgrade Actions
+                html += `<div class="p-3 bg-dark bg-opacity-25 border-top border-secondary border-opacity-10">`;
+                if (!isPro && songs.length > 7) {
+                     html += `<div class="text-center py-2"><small class="text-muted d-block mb-2">Mostrando 7 de ${songs.length} canciones</small><a href="/pro/upgrade?book_id=${bookId}" class="btn btn-sm btn-primary-glow w-100"><i class="bi bi-unlock-fill me-1"></i> Desbloquear Todo (Pro)</a></div>`;
+                } else if (!isPro) {
+                     html += `<div class="d-grid mt-2"><a href="/pro/upgrade?book_id=${bookId}" class="btn btn-outline-light btn-sm"><i class="bi bi-stars me-1"></i> Mejorar Recomendaciones</a></div>`;
+                } else {
+                    html += `<div class="d-grid gap-2"><a href="/books/add-songs?id=${bookId}" class="btn btn-outline-light btn-sm"><i class="bi bi-plus-circle me-2"></i>Añadir 10 canciones más</a></div>`;
+                }
+                html += `</div></div>`; // Close full-playlist and footer
+
+                document.getElementById('playlist-container').innerHTML = html;
+            } else {
+                document.getElementById('playlist-container').innerHTML = '<div class="p-4 text-center text-muted">No se pudo generar la playlist.</div>';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('playlist-container').innerHTML = '<div class="p-4 text-center text-muted">Error al cargar playlist.</div>';
+        });
+    }
+
+    // Character Generation
+    const charLoader = document.getElementById('characters-loader');
+    if (charLoader) {
+        fetch('/books/generate-characters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: bookId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok && data.characters && data.characters.length > 0) {
+                charLoader.remove();
+                const container = document.getElementById('characters-list');
+                
+                data.characters.forEach(char => {
+                    let traits = [];
+                    try {
+                        traits = (typeof char.traits === 'string') ? JSON.parse(char.traits) : char.traits;
+                    } catch(e) {}
+                    if (!Array.isArray(traits)) traits = [];
+                    const traitsHtml = traits.slice(0, 3).map(t => `<span class="badge bg-secondary bg-opacity-10 text-dark border border-secondary border-opacity-10 me-1 mb-1" style="font-weight: 500;">${t}</span>`).join('');
+                    
+                    const html = `
+                    <div class="col-6 col-md-4 col-lg-3 mb-4">
+                        <div class="card character-card h-100 border-0 shadow-sm overflow-hidden transition-hover">
+                            <div class="character-img-wrapper position-relative" style="padding-top: 100%;">
+                                <img src="${char.image_url}" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: cover; transition: transform 0.5s ease;" alt="${char.name}">
+                                <div class="position-absolute bottom-0 start-0 w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
+                                    <h5 class="card-title text-white mb-0 fw-bold" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-size: 1.1rem;">${char.name}</h5>
+                                </div>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="mb-2">
+                                    ${traitsHtml}
+                                </div>
+                                <p class="card-text small text-muted" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${char.description || 'Sin descripción disponible.'}</p>
+                            </div>
+                        </div>
+                    </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } else {
+                charLoader.innerHTML = '<div class="alert alert-info">No se encontraron personajes.</div>';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            charLoader.innerHTML = '<div class="alert alert-warning">Error al generar personajes.</div>';
+        });
+    }
+});
+</script>
+</body>
 </html>

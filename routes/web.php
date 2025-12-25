@@ -35,6 +35,12 @@ $router->post('/books/avatar', [App\Controllers\BookController::class, 'avatar']
 $router->get('/books/upload', [App\Controllers\BookController::class, 'upload']);
 $router->post('/books/storeUpload', [App\Controllers\BookController::class, 'storeUpload']);
 
+// AJAX Generation Routes
+$router->post('/books/generate-characters', [App\Controllers\BookController::class, 'apiGenerateCharacters']); // Deprecated or for backward compat
+$router->post('/books/fetch-character-list', [App\Controllers\BookController::class, 'fetchCharacterList']);
+$router->post('/books/generate-single-character', [App\Controllers\BookController::class, 'generateSingleCharacter']);
+$router->post('/books/generate-playlist', [App\Controllers\BookController::class, 'apiGeneratePlaylist']);
+
 $router->get('/spotify/connect', [App\Controllers\BookController::class, 'spotifyConnect']);
 $router->get('/spotify/callback', [App\Controllers\BookController::class, 'spotifyCallback']);
 $router->get('/bookvibes/callback', [App\Controllers\BookController::class, 'spotifyCallback']);

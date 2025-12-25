@@ -94,7 +94,7 @@ class MoodAnalyzer
         shuffle($queries);
         // Limit the number of queries sent to YouTube to a reasonable amount, e.g., 20-30
         $queries = array_slice($queries, 0, 30);
-
+    
         $yt = new YouTubeSearchService();
         $tracks = $yt->searchTracks($queries, 12, $artists);
         if (count($tracks) < 5) {
@@ -114,7 +114,7 @@ class MoodAnalyzer
             }
             $moreQueries = [];
             foreach ($extra as $ex) {
-                $moreQueries[] = $qBase . ' ' . $ex;
+                $moreQueries[] = $mood . ' ' . $ex;
             }
             foreach ($artists as $artist) {
                 $moreQueries[] = $artist . ' ' . $mood . ' lyrics';
@@ -137,6 +137,45 @@ class MoodAnalyzer
             'mood' => $mood,
             'keywords' => $playlistKeywords,
             'suggested_tracks' => $tracks
+        ];
+    }
+
+    public function analyzeMoodOnly(array $bookData): array
+    {
+        $text = ($bookData['synopsis'] ?? '') . ' ' . implode(' ', $bookData['keywords'] ?? []);
+        $text = strtolower($text);
+
+        $moodKeywords = [
+            'Romántico' => ['amor', 'romance', 'pasión', 'corazón', 'enamorado', 'cita', 'beso', 'sentimientos', 'deseo', 'ternura', 'felicidad', 'pareja', 'boda', 'destino', 'alma gemela'],
+            'Intriga y Suspenso' => ['misterio', 'crimen', 'oscuro', 'secreto', 'asesinato', 'investigación', 'peligro', 'sospecha', 'terror', 'miedo', 'tensión', 'giro', 'conspiración', 'desaparición', 'persecución'],
+            'Épico y Aventurero' => ['aventura', 'épico', 'viaje', 'héroe', 'batalla', 'reino', 'magia', 'dragón', 'búsqueda', 'exploración', 'descubrimiento', 'desafío', 'guerra', 'profecía', 'leyenda'],
+            'Melancólico' => ['tristeza', 'drama', 'llorar', 'pérdida', 'soledad', 'desesperación', 'nostalgia', 'dolor', 'pena', 'desamor', 'melancolía', 'recuerdo', 'adiós', 'lágrimas', 'sufrimiento'],
+            'Neutral' => []
+        ];
+
+        $moodSpecificPlaylistKeywords = [
+            'Romántico' => ['acoustic love songs', 'piano ballads', 'romantic pop', 'indie love', 'soft rock romance'],
+            'Intriga y Suspenso' => ['jazz noir', 'dark ambient', 'classical tension', 'mystery soundtrack', 'thriller score'],
+            'Épico y Aventurero' => ['cinematic orchestral', 'folk rock adventure', 'epic scores', 'heroic themes', 'fantasy soundtrack'],
+            'Melancólico' => ['indie folk sad', 'sad piano instrumental', 'ambient rain music', 'melancholic acoustic', 'heartbreak songs']
+        ];
+
+        $mood = 'Neutral';
+        foreach ($moodKeywords as $m => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($text, $keyword)) {
+                    $mood = $m;
+                    break 2;
+                }
+            }
+        }
+
+        $playlistKeywords = $moodSpecificPlaylistKeywords[$mood] ?? ['ambient study music', 'focus playlist', 'chill lofi'];
+
+        return [
+            'mood' => $mood,
+            'keywords' => $playlistKeywords,
+            'suggested_tracks' => []
         ];
     }
 

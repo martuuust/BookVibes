@@ -63,60 +63,245 @@ class BookController extends Controller
         @ini_set('default_socket_timeout', '6');
         if (session_status() === PHP_SESSION_NONE) session_start();
         $userId = $_SESSION['user_id'] ?? 0;
-        $accountType = $_SESSION['account_type'] ?? 'Basic'; // Default to Basic if not set
-        $playlistLimit = ($accountType === 'Pro') ? 10 : 7; // 10 songs for Pro, 7 for Basic
-
+        
         $query = $request->getBody()['query'] ?? '';
         
         if (empty($query)) {
             return $this->render('books/search', ['error' => 'Please enter a book title']);
         }
 
-        // 1. Scrape
+        // 1. Scrape (Fast enough, usually < 2s)
         $scraper = new ScraperService();
         $bookData = $scraper->scrapeBook($query);
         if (!$bookData) {
             return $this->render('books/search', ['error' => 'No se encontró una sinopsis oficial para este libro en fuentes verificables. Intenta el título exacto o añade el autor.']);
         }
         
-        // 2. Analyze Mood & Generate Content
+        // 2. Analyze Mood Only (Fast, local keywords)
         $moodAnalyzer = new MoodAnalyzer();
-        $moodData = $moodAnalyzer->analyze($bookData);
+        $moodData = $moodAnalyzer->analyzeMoodOnly($bookData); // New fast method
         $bookData['mood'] = $moodData['mood'];
 
-        $charGen = new CharacterGenerator();
-        $characters = $charGen->generateCharacters($bookData);
-
-        // 3. Save ALL to DB
+        // 3. Save Basic Info to DB
         $bookId = Book::create($bookData);
         
-        // Check if characters already exist to avoid dupes on re-search (basic check)
-        // Check if characters already exist to avoid dupes on re-search (basic check)
-        // FORCE REFRESH: Delete old characters to ensure new AI images are used if re-searched
-        Character::deleteByBookId($bookId);
+        // Note: Character generation and Playlist generation are now DEFERRED.
+        // They will be triggered via AJAX on the show page.
         
-        $seen = [];
-        foreach ($characters as $char) {
-            $name = trim($char['name'] ?? '');
-            if ($name === '' || $name === 'Personaje principal') continue;
-            $key = mb_strtolower($name);
-            if (isset($seen[$key])) continue;
-            $seen[$key] = true;
-            Character::create($bookId, $char);
+        // Add to User's list (UserBook relation)
+        $added = \App\Models\UserBook::add($userId, $bookId);
+
+        // Award Points only if new
+        if ($added && $userId > 0) {
+            $gamification = new \App\Services\GamificationService();
+            $gamification->awardPoints($userId, 'add_book', 10);
         }
         
-        // Only create playlist if missing, or clear it too? Let's keep existing playlist to be safe, or just check
-        $existingPlaylist = Playlist::getByBookId($bookId);
-        if (!$existingPlaylist) {
+        header("Location: /books/show?id=$bookId");
+    }
+
+    public function apiGenerateCharacters(Request $request)
+    {
+        // ... (Keep existing logic if needed for backward compatibility or bulk generation)
+        // For now we'll just keep it but maybe it won't be called by frontend
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        
+        if (!$bookId) {
+            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
+        }
+        
+        $book = Book::find($bookId);
+        if (!$book) {
+            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+        }
+        
+        // Check if characters already exist
+        $existing = Character::getByBookId($bookId);
+        if (!empty($existing)) {
+             return $this->json(['ok' => true, 'status' => 'already_exists', 'characters' => $existing]);
+        }
+        
+        try {
+            $charGen = new CharacterGenerator();
+            $bookData = [
+                'title' => $book['title'],
+                'author' => $book['author'],
+                'synopsis' => $book['synopsis']
+            ];
+            
+            $characters = $charGen->generateCharacters($bookData);
+            
+            // Save to DB
+            Character::deleteByBookId($bookId);
+            $seen = [];
+            foreach ($characters as $char) {
+                $name = trim($char['name'] ?? '');
+                if ($name === '' || $name === 'Personaje principal') continue;
+                $key = mb_strtolower($name);
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                Character::create($bookId, $char);
+            }
+            
+            return $this->json(['ok' => true, 'characters' => $characters]);
+        } catch (\Exception $e) {
+            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function fetchCharacterList(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+        if (!$isPro) {
+           return $this->json(['ok' => false, 'error' => 'Feature exclusive to Pro users'], 403);
+        }
+
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        if (!$bookId) return $this->json(['ok' => false, 'error' => 'No book ID'], 400);
+
+        $book = Book::find($bookId);
+        if (!$book) return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+
+        try {
+            $charGen = new CharacterGenerator();
+            $list = $charGen->getCharacterList([
+                'title' => $book['title'],
+                'author' => $book['author']
+            ]);
+            
+            // Filter out characters that already exist in DB for this book
+            $existing = Character::getByBookId($bookId);
+            $existingNames = [];
+            foreach($existing as $e) $existingNames[mb_strtolower(trim($e['name']))] = true;
+            
+            $filteredList = [];
+            $alreadyAddedCount = 0;
+            foreach ($list as $c) {
+                if (!isset($existingNames[mb_strtolower(trim($c['name']))])) {
+                    $filteredList[] = $c;
+                } else {
+                    $alreadyAddedCount++;
+                }
+            }
+            
+            return $this->json([
+                'ok' => true, 
+                'list' => $filteredList,
+                'total_found' => count($list),
+                'already_added_count' => $alreadyAddedCount
+            ]);
+        } catch (\Exception $e) {
+            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function generateSingleCharacter(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+        if (!$isPro) {
+           return $this->json(['ok' => false, 'error' => 'Feature exclusive to Pro users'], 403);
+        }
+
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        $charData = $body['character'] ?? null; // Should contain name, description
+        
+        if (!$bookId || !$charData || empty($charData['name'])) {
+            return $this->json(['ok' => false, 'error' => 'Invalid parameters'], 400);
+        }
+
+        $book = Book::find($bookId);
+        if (!$book) return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+        
+        // Check if exists
+        $existing = Character::getByBookId($bookId);
+        foreach($existing as $e) {
+            if (mb_strtolower(trim($e['name'])) === mb_strtolower(trim($charData['name']))) {
+                 return $this->json(['ok' => false, 'error' => 'Character already exists'], 400);
+            }
+        }
+
+        try {
+            $charGen = new CharacterGenerator();
+            $result = $charGen->generateSingleCharacter($book['title'], $charData);
+            
+            Character::create($bookId, $result);
+            
+            return $this->json(['ok' => true, 'character' => $result]);
+        } catch (\Exception $e) {
+            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+    
+    public function apiGeneratePlaylist(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        
+        if (!$bookId) {
+            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
+        }
+        
+        $book = Book::find($bookId);
+        if (!$book) {
+            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+        }
+        
+        $userId = $_SESSION['user_id'] ?? 0;
+        $accountType = $_SESSION['account_type'] ?? 'Basic';
+        $playlistLimit = ($accountType === 'Pro') ? 10 : 7;
+        
+        $playlist = Playlist::getByBookId($bookId);
+        
+        // If playlist exists and has songs, just return it
+        if ($playlist && !empty($playlist['songs'])) {
+             // Check if Pro users are missing AI songs
+             if ($accountType === 'Pro') {
+                 $hasAi = false;
+                 foreach ($playlist['songs'] as $s) {
+                     if (!empty($s['is_ai_generated'])) { $hasAi = true; break; }
+                 }
+                 if (!$hasAi) {
+                     // Generate AI songs and append
+                     $aiGen = new AISongGeneratorService();
+                     $aiSongs = $aiGen->generateSongs($book);
+                     $db = \App\Core\Database::getInstance();
+                     foreach ($aiSongs as $song) {
+                         $db->query(
+                             "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                             [$playlist['id'], $song['title'], $song['artist'], $song['url'], 1, $song['lyrics'], $song['melody_description']]
+                         );
+                     }
+                     // Refetch
+                     $playlist = Playlist::getByBookId($bookId);
+                 }
+             }
+             return $this->json(['ok' => true, 'playlist' => $playlist]);
+        }
+        
+        // Generate new playlist
+        try {
+            // Re-analyze mood to get tracks (Full analysis including YouTube)
+            $moodAnalyzer = new MoodAnalyzer();
+            $moodData = $moodAnalyzer->analyze($book); // This calls YouTube
+            
             $preferredTracks = $moodData['suggested_tracks'] ?? [];
             $tracks = array_slice($preferredTracks, 0, $playlistLimit);
+            
+            // If not enough tracks, fill with YouTube search
             if (count($tracks) < $playlistLimit) {
                 $yt = new YouTubeSearchService();
                 $queries = [];
-                $t = trim($bookData['title'] ?? '');
-                $a = trim($bookData['author'] ?? '');
-                $m = trim($bookData['mood'] ?? '');
-                if ($t !== '') {
+                $t = trim($book['title'] ?? '');
+                $a = trim($book['author'] ?? '');
+                $m = trim($book['mood'] ?? '');
+                 if ($t !== '') {
                     $queries[] = $t . ' soundtrack';
                     $queries[] = $t . ' theme song';
                 }
@@ -125,10 +310,11 @@ class BookController extends Controller
                 }
                 if ($m !== '') {
                     $queries[] = $m . ' songs';
-                    $queries[] = $m . ' music';
                 }
                 if (empty($queries)) $queries = ['reading playlist','book theme songs'];
+                
                 $fill = $yt->searchTracks($queries, ($accountType === 'Pro') ? 30 : 10);
+                
                 $seen = [];
                 foreach ($tracks as $x) { $seen[mb_strtolower(trim(($x['title'] ?? '').'|'.($x['artist'] ?? '')))] = true; }
                 foreach ($fill as $x) {
@@ -140,28 +326,52 @@ class BookController extends Controller
                 }
             }
             
-            // Generate AI Original Songs for Pro Users
+            // Generate AI Songs if Pro
             if ($accountType === 'Pro') {
                 $aiGen = new AISongGeneratorService();
-                $aiSongs = $aiGen->generateSongs($bookData);
-                // Add to the beginning of the playlist
+                $aiSongs = $aiGen->generateSongs($book);
                 $tracks = array_merge($aiSongs, $tracks);
             }
-
-            $playlistData = ['mood' => $bookData['mood'], 'suggested_tracks' => $tracks];
-            Playlist::create($bookId, $playlistData);
+            
+            $playlistData = ['mood' => $book['mood'], 'suggested_tracks' => $tracks];
+            
+            if (!$playlist) {
+                Playlist::create($bookId, $playlistData);
+            } else {
+                // Update existing playlist if empty? Implementation of Playlist::create might handle it or we assume it's new
+                // For simplicity, we just create new entries if playlist ID exists but songs empty
+                // But Playlist::create creates a new playlist row. 
+                // Let's rely on Playlist::create logic or just use it.
+                // If playlist row exists but no songs, we might want to just insert songs.
+                // But simplified:
+                 $db = \App\Core\Database::getInstance();
+                 // Clean up empty playlist header if exists to avoid dupes?
+                 // Or just use existing ID.
+                 // Let's reuse create logic which seems robust enough or just insert.
+                 // Actually Playlist::create inserts a new playlist.
+                 // If one exists, we should use it.
+                 if ($playlist) {
+                     $playlistId = $playlist['id'];
+                     foreach ($tracks as $track) {
+                        $isAi = isset($track['is_ai_generated']) ? 1 : 0;
+                        $lyrics = $track['lyrics'] ?? null;
+                        $melody = $track['melody_description'] ?? null;
+                        $db->query(
+                            "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            [$playlistId, $track['title'], $track['artist'], $track['url'], $isAi, $lyrics, $melody]
+                        );
+                     }
+                 } else {
+                     Playlist::create($bookId, $playlistData);
+                 }
+            }
+            
+            $finalPlaylist = Playlist::getByBookId($bookId);
+            return $this->json(['ok' => true, 'playlist' => $finalPlaylist]);
+            
+        } catch (\Exception $e) {
+            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
-
-        // Add to User's list (UserBook relation)
-        $added = \App\Models\UserBook::add($userId, $bookId);
-
-        // Award Points only if new
-        if ($added && $userId > 0) {
-            $gamification = new \App\Services\GamificationService();
-            $gamification->awardPoints($userId, 'add_book', 10);
-        }
-        
-        header("Location: /books/show?id=$bookId");
     }
 
     public function upload()
@@ -270,109 +480,6 @@ class BookController extends Controller
         
         // Ensure songs exist if previous creation failed
         $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
-
-        // AUTO-GENERATE AI SONGS FOR PRO USERS (Retroactive Fix)
-        if ($isPro && $playlist) {
-            $hasAiSongs = false;
-            foreach ($playlist['songs'] as $s) {
-                if (!empty($s['is_ai_generated'])) {
-                    $hasAiSongs = true;
-                    break;
-                }
-            }
-            
-            if (!$hasAiSongs) {
-                try {
-                    $aiGen = new AISongGeneratorService();
-                    // We need book array with title, author, mood, synopsis
-                    // $book is already fetched above
-                    $aiSongs = $aiGen->generateSongs($book);
-                    
-                    $db = \App\Core\Database::getInstance();
-                    foreach ($aiSongs as $song) {
-                        $db->query(
-                            "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            [
-                                $playlist['id'], 
-                                $song['title'], 
-                                $song['artist'], 
-                                $song['url'], 
-                                1, 
-                                $song['lyrics'], 
-                                $song['melody_description']
-                            ]
-                        );
-                    }
-                    // Re-fetch playlist to show new songs immediately
-                    $playlist = Playlist::getByBookId($id);
-                } catch (\Throwable $e) {
-                    // Fail silently or log
-                }
-            }
-        }
-
-        if (!$playlist || empty($playlist['songs'])) {
-            try {
-                $yt = new YouTubeSearchService();
-                $queries = [];
-                $title = trim($book['title'] ?? '');
-                $author = trim($book['author'] ?? '');
-                $mood = trim($book['mood'] ?? '');
-                if ($title !== '') {
-                    $queries[] = $title . ' soundtrack';
-                    $queries[] = $title . ' theme song';
-                    $queries[] = $title . ' playlist';
-                }
-                if ($author !== '') {
-                    $queries[] = $author . ' playlist';
-                    $queries[] = $author . ' best songs';
-                }
-                if ($mood !== '') {
-                    $queries[] = $mood . ' songs';
-                    $queries[] = $mood . ' music';
-                }
-                if (empty($queries)) $queries = ['book theme songs','reading playlist','chill music'];
-                
-                $limit = $isPro ? 10 : 7;
-                $tracks = $yt->searchTracks($queries, $limit);
-                if (!$playlist) {
-                    // Create playlist with desired number of tracks
-                    $desired = min($limit, count($tracks));
-                    $data = [
-                        'mood' => $book['mood'] ?? 'General',
-                        'suggested_tracks' => array_slice($tracks, 0, $desired)
-                    ];
-                    Playlist::create($id, $data);
-                } else {
-                    // Insert missing tracks to satisfy minimum display
-                    $existing = [];
-                    foreach ($playlist['songs'] as $s) {
-                        $key = mb_strtolower(trim(($s['title'] ?? '').'|'.($s['artist'] ?? '')));
-                        if ($key !== '') $existing[$key] = true;
-                    }
-                    $target = 5;
-                    $current = count($playlist['songs'] ?? []);
-                    $needed = max($target - $current, 0);
-                    if ($needed > 0) {
-                        $db = \App\Core\Database::getInstance();
-                        $added = 0;
-                        foreach ($tracks as $t) {
-                            if ($added >= $needed) break;
-                            $key = mb_strtolower(trim(($t['title'] ?? '').'|'.($t['artist'] ?? '')));
-                            if ($key === '' || isset($existing[$key])) continue;
-                            $db->query(
-                                "INSERT INTO songs (playlist_id, title, artist, url) VALUES (?, ?, ?, ?)",
-                                [$playlist['id'], $t['title'] ?? 'Desconocido', $t['artist'] ?? '', $t['url'] ?? '']
-                            );
-                            $existing[$key] = true;
-                            $added++;
-                        }
-                    }
-                }
-                // Re-fetch to reflect changes
-                $playlist = Playlist::getByBookId($id);
-            } catch (\Throwable $e) {}
-        }
 
         return $this->render('books/show', [
             'book' => $book,

@@ -5,6 +5,87 @@ namespace App\Services;
 class CharacterGenerator
 {
     private $timeboxStart = 0.0;
+    public function getCharacterList(array $bookData): array
+    {
+        // echo "[DEBUG] getCharacterList called for title: " . ($bookData['title'] ?? 'unknown') . "\n";
+        set_time_limit(300);
+        $title = $bookData['title'] ?? '';
+        if (!$title) return [];
+        
+        $this->timeboxStart = microtime(true);
+        // We can cache the list of names too if we want, but let's keep it fresh for now or use a different cache key
+        $cacheKey = "char_list_" . $this->cacheKey($title, $bookData['author'] ?? '');
+        $cached = $this->cacheGet($cacheKey);
+        if ($cached) {
+            // echo "[DEBUG] Returning cached data\n";
+            return $cached;
+        }
+
+        // echo "[DEBUG] Extracting from Wikipedia...\n";
+        $characters = $this->extractCharactersFromWikipedia($title, $bookData['author'] ?? '');
+        // echo "[DEBUG] Wikipedia found " . count($characters) . " characters.\n";
+
+        if (count($characters) < 5) {
+            // echo "[DEBUG] Extracting from External Sources...\n";
+            $external = $this->extractCharactersFromExternalSources($title, $bookData['author'] ?? '');
+            $characters = $this->mergeCharacterLists($characters, $external);
+            if (count($characters) < 3) {
+                $wd = $this->extractCharactersFromWikidata($title);
+                $characters = $this->mergeCharacterLists($characters, $wd);
+            }
+        }
+        
+        if (empty($characters)) return [];
+
+        $characters = $this->normalizeCharactersList($characters);
+        
+        // We fetch details to have good descriptions for the selection
+        $detailsWiki = $this->wikiFetchDetailsBatch($characters);
+        $detailsPages = $this->genericFetchDetailsBatch($characters, ['fandom','wikia','sparknotes','litcharts','shmoop','bookanalysis','supersummary','cliffsnotes','enotes','penguinrandomhouse','harpercollins','macmillan']);
+        
+        $enriched = [];
+        foreach ($characters as $c) {
+            $desc = $detailsWiki[$c['name']] ?? ($detailsPages[$c['name']] ?? ($c['description'] ?? ''));
+            $enriched[] = [
+                'name' => $c['name'],
+                'description' => $desc,
+                'url' => $c['url'] ?? '',
+                'lang' => $c['lang'] ?? '',
+                'source_count' => $c['source_count'] ?? 1
+            ];
+        }
+        
+        // Filter but keep a bit more than just "Main" ones so user has choice
+        // $main = $this->filterMainCharacters($enriched);
+        // if (empty($main)) $main = $enriched;
+        
+        // Let's just return the enriched list, sorted by relevance/source_count
+        usort($enriched, function($a, $b) {
+            return $b['source_count'] <=> $a['source_count'];
+        });
+
+        // Cache the list
+        $this->cacheSet($cacheKey, $enriched);
+        
+        return $enriched;
+    }
+
+    public function generateSingleCharacter(string $bookTitle, array $characterData): array
+    {
+        $name = $characterData['name'];
+        $desc = $characterData['description'] ?? '';
+        $traits = $this->extractTraits($desc);
+        $prompt = $this->buildPrompt($bookTitle, $name, $traits);
+        $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($prompt);
+        
+        return [
+            'name' => $name,
+            'description' => $desc,
+            'traits' => $traits,
+            'image_url' => $imageUrl
+        ];
+    }
+
     public function generateCharacters(array $bookData): array
     {
         set_time_limit(300); // Aumentar el tiempo máximo de ejecución a 5 minutos
@@ -16,7 +97,7 @@ class CharacterGenerator
         if ($cached) {
             return $cached;
         }
-        $characters = $this->extractCharactersFromWikipedia($title);
+        $characters = $this->extractCharactersFromWikipedia($title, $bookData['author'] ?? '');
         if (count($characters) < 3) {
             $external = $this->extractCharactersFromExternalSources($title, $bookData['author'] ?? '');
             $characters = $this->mergeCharacterLists($characters, $external);
@@ -67,17 +148,18 @@ class CharacterGenerator
         return $result;
     }
 
-    private function extractCharactersFromWikipedia(string $title): array
+    private function extractCharactersFromWikipedia(string $title, string $author = ''): array
     {
-        $page = $this->wikiFindPage($title, 'es');
+        $page = $this->wikiFindPage($title, 'es', $author);
         if (!$page) {
-             $page = $this->wikiFindPage($title, 'en');
+             $page = $this->wikiFindPage($title, 'en', $author);
         }
         if (!$page) {
              return [];
         }
         $chars = $this->wikiGetCharactersSection($page['title'], $page['lang']);
         if (!empty($chars)) return $chars;
+        
         // Try dedicated list pages if main article has no character section
         $listPage = $this->wikiFindCharactersListPage($title, $page['lang']);
         if ($listPage) {
@@ -86,24 +168,86 @@ class CharacterGenerator
         return $chars;
     }
 
-    private function wikiFindPage(string $title, string $lang): ?array
+    private function wikiFindPage(string $title, string $lang, string $author = ''): ?array
     {
-        $queries = [
-            $title . " novela",
-            $title . " novel",
-            $title . " (book)",
-            $title . " (libro)",
-            $title
-        ];
-        foreach ($queries as $q) {
-            $url = "https://{$lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=" . urlencode($q) . "&format=json";
-            $json = $this->fetchUrl($url);
-            if (!$json) {
-                continue;
+        $queries = [];
+        if ($author) {
+            // High confidence queries
+            $queries[] = $title . " " . $author;
+            if ($lang === 'es') {
+                $queries[] = $title . " " . $author . " novela";
+            } else {
+                $queries[] = $title . " " . $author . " novel";
             }
+        }
+        
+        // Medium confidence
+        if ($lang === 'es') {
+             $queries[] = $title . " (novela)";
+             $queries[] = $title . " (libro)";
+        } else {
+             $queries[] = $title . " (novel)";
+             $queries[] = $title . " (book)";
+        }
+        
+        // Low confidence (just title)
+        $queries[] = $title;
+
+        foreach ($queries as $q) {
+            $url = "https://{$lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=" . urlencode($q) . "&format=json&srlimit=5";
+            $json = $this->fetchUrl($url);
+            if (!$json) continue;
+            
             $data = json_decode($json, true);
-            if (!empty($data['query']['search'][0]['title'])) {
-                return ['title' => $data['query']['search'][0]['title'], 'lang' => $lang];
+            if (!empty($data['query']['search'])) {
+                foreach ($data['query']['search'] as $item) {
+                    $t = $item['title'];
+                    
+                    // Skip if title is just the author's name
+                    if ($author && (stripos($t, $author) !== false) && strlen($t) < strlen($author) + 5) {
+                        continue;
+                    }
+
+                    // Check for specific keywords indicating a book/novel
+                    if (preg_match('/\(novel|\(book|\(libro|\(novela/i', $t)) {
+                        // verify similarity to avoid false positives (e.g. searching "Shadow" getting "Chocolat (novela)")
+                        $cleanT = preg_replace('/\(novel|\(book|\(libro|\(novela|\)/i', '', $t);
+                        $cleanT = trim($cleanT);
+                        
+                        similar_text(mb_strtolower($title), mb_strtolower($cleanT), $sim);
+                         if ($sim > 70 || stripos($cleanT, $title) !== false || stripos($title, $cleanT) !== false) {
+                              return ['title' => $t, 'lang' => $lang];
+                         }
+                    }
+                    
+                    // If the result title contains the book title
+                    if (stripos($t, $title) !== false) {
+                        return ['title' => $t, 'lang' => $lang];
+                    }
+                    
+                    // Fuzzy match (similarity > 80%)
+                    similar_text(mb_strtolower($title), mb_strtolower($t), $percent);
+                    if ($percent > 80) {
+                         return ['title' => $t, 'lang' => $lang];
+                    }
+                }
+                
+                // If query was specific (e.g. "Title (novel)"), and we haven't found a match yet, 
+                // we might want to return the top result IF it's not the author AND it looks similar
+                if (strpos($q, '(') !== false) {
+                     $top = $data['query']['search'][0]['title'];
+                     // Clean both title and top result for comparison
+                     $cleanTop = preg_replace('/\(novel|\(book|\(libro|\(novela|\)/i', '', $top);
+                     $cleanTop = trim($cleanTop);
+                     
+                     if (!$author || stripos($top, $author) === false) {
+                         // Check similarity
+                         similar_text(mb_strtolower($title), mb_strtolower($cleanTop), $sim);
+                         if ($sim > 70 || stripos($cleanTop, $title) !== false || stripos($title, $cleanTop) !== false) {
+                             return ['title' => $top, 'lang' => $lang];
+                         }
+                     }
+                }
             }
         }
         return null;
@@ -131,84 +275,594 @@ class CharacterGenerator
 
     private function extractCharactersFromExternalSources(string $title, string $author): array
     {
+        // echo "[DEBUG] extractCharactersFromExternalSources called.\n";
         $out = [];
-        $max = 8;
-        $siteQueries = [
-            ["sparknotes.com", "\"{$title}\" characters site:sparknotes.com"],
-            ["litcharts.com", "\"{$title}\" characters site:litcharts.com"],
-            ["shmoop.com", "\"{$title}\" characters site:shmoop.com"],
-            ["fandom.com", "\"{$title}\" characters site:fandom.com"],
-            ["wikia.org", "\"{$title}\" characters site:wikia.org"],
-            ["bookanalysis.com", $title . " characters site:bookanalysis.com"],
-            ["goodreads.com", $title . " characters site:goodreads.com"],
-            ["", $title . " personajes principales"],
-            ["fandom.com", "\"Boys of Tommen\" characters site:fandom.com"],
-            ["fandom.com", "\"{$title}\" personajes site:fandom.com"],
-            ["goodreads.com", "\"{$title}\" personajes site:goodreads.com"],
-            ["supersummary.com", "\"{$title}\" characters site:supersummary.com"],
-            ["cliffsnotes.com", "\"{$title}\" characters site:cliffsnotes.com"],
-            ["enotes.com", "\"{$title}\" characters site:enotes.com"],
-            ["penguinrandomhouse.com", "\"{$title}\" characters site:penguinrandomhouse.com"],
-            ["harpercollins.com", "\"{$title}\" characters site:harpercollins.com"],
-            ["macmillan.com", "\"{$title}\" characters site:macmillan.com"]
+        
+        // 1. Try direct Fandom discovery first (very fast)
+        // echo "[DEBUG] Trying direct Fandom discovery...\n";
+        $fandomChars = $this->extractCharactersFromDirectSources($title);
+        $out = $this->mergeCharacterLists($out, $fandomChars);
+        // echo "[DEBUG] Direct Fandom found " . count($out) . " characters.\n";
+        if (count($out) > 15) return $out;
+
+        // 2. Parallel Search Strategy
+        // Instead of sequential searches, we fire a few targeted searches in parallel or one broad search
+        $searchQueries = [
+            "\"{$title}\" characters site:fandom.com OR site:wikia.org",
+            "\"{$title}\" characters site:goodreads.com OR site:lecturalia.com",
+            "\"{$title}\" characters site:litcharts.com OR site:sparknotes.com",
+            "\"{$title}\" characters site:bookcompanion.com OR site:personality-database.com"
         ];
-        $siteQueries = array_slice($siteQueries, 0, 10);
-        if (!empty($author)) {
-            $authorQueries = [
-                ["sparknotes.com", "\"{$title}\" \"{$author}\" characters site:sparknotes.com"],
-                ["litcharts.com", "\"{$title}\" \"{$author}\" characters site:litcharts.com"],
-                ["fandom.com", "\"{$title}\" \"{$author}\" characters site:fandom.com"],
-                ["supersummary.com", "\"{$title}\" \"{$author}\" characters site:supersummary.com"],
-                ["cliffsnotes.com", "\"{$title}\" \"{$author}\" characters site:cliffsnotes.com"],
-                ["enotes.com", "\"{$title}\" \"{$author}\" characters site:enotes.com"]
-            ];
-            $siteQueries = array_merge($siteQueries, array_slice($authorQueries, 0, 4));
+        
+        // We'll just do one broad search on Bing/DDG to save time
+        $combinedQuery = "\"{$title}\" characters (site:fandom.com OR site:goodreads.com OR site:lecturalia.com OR site:litcharts.com OR site:sparknotes.com OR site:bookcompanion.com OR site:personality-database.com)";
+        
+        // echo "[DEBUG] Searching DuckDuckGo with query: $combinedQuery\n";
+        $urls = $this->searchDuckDuckGo($combinedQuery);
+        // echo "[DEBUG] DuckDuckGo returned " . count($urls) . " URLs.\n";
+        
+        // Fallback: Looser search if strict search fails
+        if (empty($urls)) {
+            $combinedQueryLoose = "{$title} characters (site:fandom.com OR site:goodreads.com OR site:lecturalia.com OR site:litcharts.com OR site:sparknotes.com OR site:bookcompanion.com OR site:personality-database.com)";
+            $urls = $this->searchDuckDuckGo($combinedQueryLoose);
         }
-        foreach ($siteQueries as [$site, $q]) {
-            if ($this->timeboxStart > 0 && (microtime(true) - $this->timeboxStart) > 18.0) break;
-            $urls = $this->searchDuckDuckGo($q);
-            foreach ($urls as $u) {
-                if ($this->timeboxStart > 0 && (microtime(true) - $this->timeboxStart) > 19.5) break 2;
+
+        // Fallback 2: Title + Author if still empty
+        if (empty($urls) && !empty($author)) {
+             $q = "{$title} {$author} characters";
+             $urls = $this->searchDuckDuckGo($q);
+        }
+        
+        // Filter and prioritize URLs
+        $targetUrls = [];
+        $domains = [];
+        foreach ($urls as $u) {
+            $host = parse_url($u, PHP_URL_HOST);
+            // Limit to 1 URL per domain to maximize diversity
+            if (isset($domains[$host])) continue;
+            
+            if (strpos($u, 'lecturalia.com') !== false ||
+                strpos($u, 'bookcompanion.com') !== false ||
+                strpos($u, 'goodreads.com') !== false ||
+                strpos($u, 'litcharts.com') !== false ||
+                strpos($u, 'sparknotes.com') !== false ||
+                strpos($u, 'personality-database.com') !== false ||
+                strpos($u, 'fandom.com') !== false) {
+                
+                $targetUrls[] = $u;
+                $domains[$host] = true;
+            }
+            if (count($targetUrls) >= 5) break; // Limit to top 5 sources
+        }
+
+        // 3. Parallel Fetch of Target Pages
+        if (!empty($targetUrls)) {
+            $pagesContent = $this->multiFetchUrl($targetUrls);
+            
+            foreach ($pagesContent as $url => $html) {
+                if (!$html) continue;
                 $list = [];
-                if (strpos($u, 'sparknotes.com') !== false) {
-                    $list = $this->parseSparkNotes($u);
-                } elseif (strpos($u, 'litcharts.com') !== false) {
-                    $list = $this->parseLitCharts($u);
-                } elseif (strpos($u, 'shmoop.com') !== false) {
-                    $list = $this->parseShmoop($u);
-                } elseif (strpos($u, 'bookanalysis.com') !== false) {
-                    $list = $this->parseBookAnalysis($u);
-                } elseif (strpos($u, 'fandom') !== false || strpos($u, 'wikia') !== false) {
-                    $list = $this->parseFandomCharacters($u);
-                } elseif (strpos($u, 'goodreads.com') !== false) {
-                    $list = $this->parseGenericCharacterListPage($u);
-                } elseif (strpos($u, 'supersummary.com') !== false) {
-                    $list = $this->parseSuperSummary($u);
-                } elseif (strpos($u, 'cliffsnotes.com') !== false) {
-                    $list = $this->parseCliffsNotes($u);
-                } elseif (strpos($u, 'enotes.com') !== false) {
-                    $list = $this->parseENotes($u);
-                } elseif (strpos($u, 'penguinrandomhouse.com') !== false || strpos($u, 'harpercollins.com') !== false || strpos($u, 'macmillan.com') !== false) {
-                    $list = $this->parsePublisherPage($u);
+                
+                if (strpos($url, 'lecturalia.com') !== false) {
+                    $list = $this->parseLecturalia($html);
+                } elseif (strpos($url, 'bookcompanion.com') !== false) {
+                    $list = $this->parseBookCompanion($html);
+                } elseif (strpos($url, 'personality-database.com') !== false) {
+                    $list = $this->parsePersonalityDatabase($html);
+                } elseif (strpos($url, 'sparknotes.com') !== false) {
+                    $list = $this->parseSparkNotes($url, $html);
+                } elseif (strpos($url, 'litcharts.com') !== false) {
+                    $list = $this->parseLitCharts($url, $html);
+                } elseif (strpos($url, 'fandom') !== false || strpos($url, 'wikia') !== false) {
+                    $list = $this->parseFandomCharacters($url, $html); // Ensure this method accepts HTML arg
+                } elseif (strpos($url, 'goodreads.com') !== false) {
+                    $list = $this->parseGenericCharacterListPage($url, $html);
                 } else {
-                    $list = $this->parseGenericCharacterListPage($u);
+                    $list = $this->parseGenericCharacterListPage($url, $html);
                 }
+                
                 $out = $this->mergeCharacterLists($out, $list);
-                if (count($out) < $max) {
-                    $textNames = $this->parseNamesFromUrl($u);
-                    $out = $this->mergeCharacterLists($out, array_map(function($n){ return ['name'=>$n,'description'=>'','url'=>'','lang'=>'']; }, $textNames));
+            }
+        }
+
+        return $out;
+    }
+
+    private function multiFetchUrl(array $urls): array {
+        // echo "[DEBUG] multiFetchUrl called with " . count($urls) . " URLs\n";
+        $mh = curl_multi_init();
+        $handles = [];
+        $results = [];
+
+        foreach ($urls as $url) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8); // Increased to 8s
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language: es-ES,es;q=0.9,en;q=0.8"
+            ]);
+            
+            curl_multi_add_handle($mh, $ch);
+            $handles[(int)$ch] = ['ch' => $ch, 'url' => $url];
+        }
+
+        $running = null;
+        $start = microtime(true);
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running > 0) {
+                curl_multi_select($mh, 0.1);
+            }
+            if (microtime(true) - $start > 9.0) break; // Global safety timeout
+        } while ($running > 0 && $status === CURLM_OK);
+
+        foreach ($handles as $h) {
+            $ch = $h['ch'];
+            $url = $h['url'];
+            $content = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            
+            // echo "[Trace] $url -> Code: $httpCode, Len: " . strlen($content ?? '') . ", Err: $err\n";
+            // if (strlen($content ?? '') < 5000) {
+            //    echo "[Trace] Content Preview: " . substr($content ?? '', 0, 200) . "...\n";
+            // }
+            
+            if ($httpCode >= 200 && $httpCode < 400 && !empty($content)) {
+                $results[$url] = $content;
+            }
+            
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        
+        curl_multi_close($mh);
+        return $results;
+    }
+
+    private function parseLecturalia(string $html): array {
+        $out = [];
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        // Strategy: Look for strong tags inside .personajes
+        $nodes = $xpath->query('//div[@class="personajes"]//strong');
+        foreach ($nodes as $node) {
+            $name = trim($node->textContent);
+            $desc = '';
+            
+            // Try to get text after the strong tag
+            $next = $node->nextSibling;
+            while ($next) {
+                if ($next->nodeType === XML_TEXT_NODE) {
+                    $desc .= $next->textContent;
+                } elseif ($next->nodeName === 'br') {
+                     // continue or break depending on structure? Let's just append.
+                } else {
+                     $desc .= $next->textContent;
                 }
-                if (count($out) >= $max) break 2;
+                $next = $next->nextSibling;
+                if ($next && ($next->nodeName === 'strong' || $next->nodeName === 'h2' || $next->nodeName === 'h3')) break; 
+                if (strlen($desc) > 300) break; 
+            }
+            
+            $desc = trim($desc, " :-\t\n\r");
+            
+            if (strlen($name) > 2 && $this->isValidCharacterName($name)) {
+                $out[] = ['name' => $name, 'description' => $desc, 'url' => '', 'lang' => 'es'];
+            }
+        }
+        
+        if (empty($out)) {
+             // Fallback to h3 links or just links in main content
+             $nodes = $xpath->query('//div[@id="content"]//a | //h3/a');
+             foreach ($nodes as $node) {
+                 $name = trim($node->textContent);
+                 // Heuristic: Character names usually 2+ words, capitalized
+                 if ($this->isValidCharacterName($name) && strpos($name, ' ') !== false) {
+                     $out[] = ['name' => $name, 'description' => '', 'url' => '', 'lang' => 'es'];
+                 }
+             }
+        }
+        
+        return $out;
+    }
+
+    private function parseBookCompanion(string $html): array {
+        $out = [];
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        // Look for character lists in tables or bold items
+        // Strategy: h3 or strong, followed by p or text
+        $nodes = $xpath->query('//div[contains(@class, "character")]//h3 | //div[contains(@class, "character")]//strong | //div[@id="content"]//ul/li/strong');
+        
+        foreach ($nodes as $node) {
+            $name = trim($node->textContent);
+            $desc = '';
+            
+            // If it's H3, look for next P
+            if ($node->nodeName === 'h3') {
+                $next = $node->nextSibling;
+                while ($next && $next->nodeName !== 'p' && $next->nodeName !== 'h3') {
+                    $next = $next->nextSibling;
+                }
+                if ($next && $next->nodeName === 'p') {
+                    $desc = trim($next->textContent);
+                }
+            } else {
+                 // Inline description (strong inside li or p)
+                 // Get parent text and remove name
+                 $parent = $node->parentNode;
+                 $desc = trim(str_replace($name, '', $parent->textContent));
+                 $desc = trim($desc, " :-\t\n\r");
+            }
+            
+            if (strlen($name) > 2 && $this->isValidCharacterName($name)) {
+                $out[] = ['name' => $name, 'description' => $desc, 'url' => '', 'lang' => 'en'];
             }
         }
         return $out;
     }
 
+    private function parsePersonalityDatabase(string $html): array {
+        // PDB is often JS rendered, but sometimes we catch titles in meta or json-ld
+        $out = [];
+        
+        // 1. JSON-LD Strategy
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        $scripts = $xpath->query('//script[@type="application/ld+json"]');
+        foreach ($scripts as $s) {
+            $json = json_decode($s->textContent, true);
+            if (!$json) continue;
+            
+            // Check for ItemList
+            if (isset($json['@type']) && $json['@type'] === 'ItemList' && isset($json['itemListElement'])) {
+                foreach ($json['itemListElement'] as $item) {
+                    $name = $item['name'] ?? ($item['item']['name'] ?? '');
+                    if ($name && $this->isValidCharacterName($name)) {
+                         $out[] = ['name' => $name, 'description' => '', 'url' => $item['url'] ?? '', 'lang' => 'en'];
+                    }
+                }
+            }
+        }
+        
+        if (!empty($out)) return $out;
+
+        // 2. Regex Fallback
+        if (preg_match_all('/"name":"([^"]+)"/i', $html, $matches)) {
+            foreach ($matches[1] as $m) {
+                if (strlen($m) > 2 && strlen($m) < 40 && !strpos($m, 'http') && $this->isValidCharacterName($m)) {
+                    $out[] = ['name' => $m, 'description' => '', 'url' => '', 'lang' => 'en'];
+                }
+            }
+        }
+        
+        return array_slice($out, 0, 15);
+    }
+    
+    private function parseSparkNotes(string $url, string $html = null): array {
+        if (!$html) $html = $this->fetchUrl($url);
+        if (!$html) return [];
+        
+        $out = [];
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        // SparkNotes character list
+        // Strategy 1: .character-card or .character-list-item
+        $cards = $xpath->query('//div[contains(@class, "character-card")] | //div[contains(@class, "character-list-item")]');
+        if ($cards->length > 0) {
+            foreach ($cards as $card) {
+                $nameNode = $xpath->query('.//h3', $card)->item(0);
+                if (!$nameNode) $nameNode = $xpath->query('.//*[contains(@class, "character-name")]', $card)->item(0);
+                
+                if ($nameNode) {
+                    $name = trim($nameNode->textContent);
+                    $desc = '';
+                    $descNode = $xpath->query('.//*[contains(@class, "character-description")]', $card)->item(0);
+                    if ($descNode) {
+                        $desc = trim($descNode->textContent);
+                    } else {
+                        // Try p tag inside card
+                        $p = $xpath->query('.//p', $card)->item(0);
+                        if ($p) $desc = trim($p->textContent);
+                    }
+                    
+                    if ($this->isValidCharacterName($name)) {
+                        $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+                    }
+                }
+            }
+        }
+        
+        if (!empty($out)) return $out;
+
+        // Strategy 2: h3 followed by p
+        $nodes = $xpath->query('//div[contains(@class, "character-list")]//h3');
+        foreach ($nodes as $node) {
+            $name = trim($node->textContent);
+            $desc = '';
+            
+            $next = $node->nextSibling;
+            while ($next && $next->nodeName !== 'p' && $next->nodeName !== 'h3') {
+                $next = $next->nextSibling;
+            }
+            if ($next && $next->nodeName === 'p') {
+                $desc = trim($next->textContent);
+            }
+            
+            if (strlen($name) > 2 && $this->isValidCharacterName($name)) {
+                $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+            }
+        }
+        
+        // Fallback: Just links
+        if (empty($out)) {
+             $nodes = $xpath->query('//a[contains(@class, "character-name")]');
+             foreach ($nodes as $node) {
+                 $name = trim($node->textContent);
+                 if (strlen($name) > 2 && $this->isValidCharacterName($name)) {
+                     $out[] = ['name' => $name, 'description' => '', 'url' => $url, 'lang' => 'en'];
+                 }
+             }
+        }
+        
+        return $out;
+    }
+
+    private function parseLitCharts(string $url, string $html = null): array {
+        if (!$html) $html = $this->fetchUrl($url);
+        if (!$html) return [];
+
+        $out = [];
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        // LitCharts character names
+        // Strategy: .character-entry or similar container
+        $entries = $xpath->query('//div[contains(@class, "character-entry")] | //div[contains(@class, "character-list-entry")]');
+        
+        if ($entries->length > 0) {
+            foreach ($entries as $entry) {
+                $nameNode = $xpath->query('.//*[contains(@class, "character-name")]', $entry)->item(0);
+                if ($nameNode) {
+                    $name = trim($nameNode->textContent);
+                    $desc = '';
+                    $descNode = $xpath->query('.//*[contains(@class, "character-description")]', $entry)->item(0);
+                    if ($descNode) {
+                         $desc = trim($descNode->textContent);
+                    }
+                    
+                    if ($this->isValidCharacterName($name)) {
+                         $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+                    }
+                }
+            }
+        }
+        
+        if (!empty($out)) return $out;
+
+        // Fallback
+        $nodes = $xpath->query('//div[contains(@class, "character-name")] | //span[contains(@class, "character-name")]');
+        foreach ($nodes as $node) {
+            $name = trim($node->textContent);
+            if (strlen($name) > 2 && $this->isValidCharacterName($name)) {
+                $out[] = ['name' => $name, 'description' => '', 'url' => $url, 'lang' => 'en'];
+            }
+        }
+        return $out;
+    }
+
+    private function extractCharactersFromDirectSources(string $title): array
+    {
+        $out = [];
+        $slugs = [];
+        $cleanTitle = strtolower(preg_replace('/[^a-zA-Z0-9 ]/', '', $title));
+        $cleanTitleNoSpaces = str_replace(' ', '', $cleanTitle);
+        $cleanTitleUnderscore = str_replace(' ', '_', $title); // Keep case for Wikipedia? No, usually Capitalized.
+        // Wikipedia uses underscores and case sensitivity. "Harry Potter and the Philosopher's Stone"
+        $wikiTitle = str_replace(' ', '_', ucwords($title));
+        
+        // 1. Basic: "Boys of Tommen" -> "boysoftommen"
+        $slugs[] = $cleanTitleNoSpaces;
+        
+        // 2. Without articles: "The Hunger Games" -> "hungergames"
+        $withoutArticles = str_replace(['the ', 'a ', 'an '], '', $cleanTitle . ' ');
+        $withoutArticles = str_replace(' ', '', trim($withoutArticles));
+        if ($withoutArticles !== $cleanTitleNoSpaces) {
+            $slugs[] = $withoutArticles;
+        }
+
+        // 3. First two words: "Harry Potter and..." -> "harrypotter"
+        $words = explode(' ', $cleanTitle);
+        if (count($words) >= 2) {
+            $slugs[] = $words[0] . $words[1];
+        }
+        
+        // 4. First word only if it's unique enough (length > 5)
+        if (strlen($words[0]) > 5) {
+            $slugs[] = $words[0];
+        }
+        
+        $slugs = array_unique($slugs);
+        $candidateUrls = [];
+        
+        // Fandom URLs
+        foreach ($slugs as $slug) {
+            if (strlen($slug) < 3) continue;
+            $candidateUrls[] = "https://{$slug}.fandom.com/wiki/Category:Characters";
+            $candidateUrls[] = "https://{$slug}.fandom.com/wiki/Characters";
+            $candidateUrls[] = "https://{$slug}.fandom.com/wiki/List_of_characters";
+            $candidateUrls[] = "https://{$slug}.fandom.com/wiki/Category:Main_characters";
+        }
+        
+        // Wikipedia URLs (English and Spanish)
+         $candidateUrls[] = "https://en.wikipedia.org/wiki/" . $wikiTitle;
+         $candidateUrls[] = "https://en.wikipedia.org/wiki/List_of_" . $wikiTitle . "_characters";
+         $candidateUrls[] = "https://es.wikipedia.org/wiki/" . $wikiTitle;
+         $candidateUrls[] = "https://es.wikipedia.org/wiki/Personajes_de_" . $wikiTitle;
+         
+         // Try "List of [First 2 Words] characters" for series (e.g. Harry Potter)
+         if (count($words) >= 2 && strlen($words[0]) > 3 && strlen($words[1]) > 3) {
+             $shortTitle = ucfirst($words[0]) . '_' . ucfirst($words[1]);
+             $candidateUrls[] = "https://en.wikipedia.org/wiki/List_of_" . $shortTitle . "_characters";
+             $candidateUrls[] = "https://es.wikipedia.org/wiki/Personajes_de_" . $shortTitle;
+         }
+
+         // Limit to reasonable number of requests
+        $candidateUrls = array_slice(array_unique($candidateUrls), 0, 25);
+        
+        if (empty($candidateUrls)) return [];
+        
+        // Parallel fetch with strict timeout
+        $responses = $this->multiFetchUrl($candidateUrls);
+        
+        foreach ($responses as $url => $html) {
+             if (!$html) continue;
+             
+             $list = [];
+              if (strpos($url, 'fandom.com') !== false) {
+                  $list = $this->parseFandomCharacters($url, $html);
+              } elseif (strpos($url, 'wikipedia.org') !== false) {
+                  $list = $this->parseWikipediaCharacterList($url, $html);
+              }
+              
+              if (!empty($list)) {
+                 $out = $this->mergeCharacterLists($out, $list);
+             }
+        }
+        
+        return $out;
+    }
+
     private function searchDuckDuckGo(string $query): array
     {
-        $url = "https://duckduckgo.com/html/?q=" . urlencode($query);
+        // echo "[DEBUG] Searching DuckDuckGo with query: $query\n";
+        
+        // Try Lite version first (lighter, faster, less likely to hang)
+        $urlLite = "https://lite.duckduckgo.com/lite/?q=" . urlencode($query);
+        $htmlLite = $this->fetchUrl($urlLite, 5); // 5s timeout
+        $out = [];
+        
+        if ($htmlLite) {
+            // echo "[DEBUG] Parsing DDG Lite result (Len: " . strlen($htmlLite) . ")...\n";
+            $out = $this->parseDuckDuckGoLite($htmlLite);
+            // echo "[DEBUG] DDG Lite found " . count($out) . " URLs.\n";
+        }
+        
+        // If Lite version failed or returned few results, try HTML version
+        if (empty($out)) {
+            // echo "[DEBUG] DDG Lite returned nothing, trying HTML version...\n";
+            $url = "https://duckduckgo.com/html/?q=" . urlencode($query);
+            $html = $this->fetchUrl($url, 5); // 5s timeout
+            if ($html) {
+                // echo "[DEBUG] Parsing DDG HTML result (Len: " . strlen($html) . ")...\n";
+                $out = $this->parseDuckDuckGoHtml($html);
+                // echo "[DEBUG] DDG HTML found " . count($out) . " URLs.\n";
+            }
+        }
+
+        // If still empty, try Bing as last resort
+        if (empty($out)) {
+            // echo "[DEBUG] DDG failed, trying Bing...\n";
+            $out = $this->searchBing($query);
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    private function searchBing(string $query): array
+    {
+        $url = "https://www.bing.com/search?q=" . urlencode($query);
         $html = $this->fetchUrl($url);
         if (!$html) return [];
+
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        
+        // Bing main results are usually in <li class="b_algo"><h2><a href="...">
+        // But to be safe, we grab all links inside h2 tags or just all links and filter
+        $nodes = $xpath->query('//li[@class="b_algo"]//h2/a[@href]');
+        // echo "[DEBUG] Bing XPath 1 found " . $nodes->length . " nodes.\n";
+        $out = [];
+        
+        if ($nodes->length === 0) {
+            // Fallback: grab all links and filter aggressively
+            $nodes = $xpath->query('//a[@href]');
+            // echo "[DEBUG] Bing XPath 2 (fallback) found " . $nodes->length . " nodes.\n";
+        }
+
+        // If DOM found very few nodes, try Regex as a safety net
+        $regexLinks = [];
+        if ($nodes->length < 10) {
+            // echo "[DEBUG] DOM parsing yielded few results. Trying Regex...\n";
+            if (preg_match_all('/href=["\'](https?:\/\/[^"\']+)["\']/i', $html, $matches)) {
+                $regexLinks = $matches[1];
+                // echo "[DEBUG] Regex found " . count($regexLinks) . " links.\n";
+                // Debug first few links
+                for ($i = 0; $i < min(5, count($regexLinks)); $i++) {
+                    // echo "[DEBUG] Regex link example: " . $regexLinks[$i] . "\n";
+                }
+            }
+        }
+
+        $allLinks = [];
+        foreach ($nodes as $a) {
+            $allLinks[] = $a->getAttribute('href');
+        }
+        $allLinks = array_merge($allLinks, $regexLinks);
+        $allLinks = array_unique($allLinks);
+
+        foreach ($allLinks as $href) {
+            // echo "[DEBUG] Checking link: $href\n"; // Commented out to reduce noise
+            if (strpos($href, 'http') !== 0) continue;
+            if (strpos($href, 'microsoft.com') !== false) continue;
+            // if (strpos($href, 'bing.com') !== false) continue; // Allow Bing links for inspection
+            
+            // Prioritize target domains
+            if (strpos($href, 'fandom.com') !== false || 
+                strpos($href, 'wikipedia.org') !== false || 
+                strpos($href, 'goodreads.com') !== false ||
+                strpos($href, 'lecturalia.com') !== false ||
+                strpos($href, 'litcharts.com') !== false ||
+                strpos($href, 'sparknotes.com') !== false ||
+                strpos($href, 'bookcompanion.com') !== false ||
+                strpos($href, 'personality-database.com') !== false) {
+                $out[] = $href;
+            }
+        }
+        
+        return array_slice(array_unique($out), 0, 8);
+    }
+
+    private function parseDuckDuckGoHtml($html): array {
         $dom = new \DOMDocument();
         libxml_use_internal_errors(true);
         $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
@@ -218,36 +872,91 @@ class CharacterGenerator
         $out = [];
         foreach ($nodes as $a) {
             $href = $a->getAttribute('href');
-            if (strpos($href, 'http') === 0) {
-                // Skip duckduckgo redirect links
-                if (strpos($href, 'duckduckgo.com') !== false) continue;
-                $out[] = $href;
-                if (count($out) >= 6) break;
+            $out = array_merge($out, $this->extractUrlFromDDGLink($href));
+            if (count($out) >= 8) break;
+        }
+        return $out;
+    }
+
+    private function parseDuckDuckGoLite($html): array {
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+        // Lite version usually has links in table rows
+        $nodes = $xpath->query('//a[@href]');
+        $out = [];
+        foreach ($nodes as $a) {
+            $href = $a->getAttribute('href');
+            $out = array_merge($out, $this->extractUrlFromDDGLink($href));
+            if (count($out) >= 8) break;
+        }
+        return $out;
+    }
+
+    private function extractUrlFromDDGLink($href): array {
+        $out = [];
+        // Handle DDG redirect links
+        if (strpos($href, '/l/?') !== false || strpos($href, 'duckduckgo.com/l/?') !== false) {
+            $queryPart = parse_url($href, PHP_URL_QUERY);
+            if ($queryPart) {
+                parse_str($queryPart, $params);
+                if (!empty($params['uddg'])) {
+                    $target = $params['uddg'];
+                    if (strpos($target, 'http') === 0) {
+                        $out[] = $target;
+                    }
+                }
             }
+        }
+        // Handle direct links
+        elseif (strpos($href, 'http') === 0) {
+            // Skip duckduckgo internal links and ads
+            if (strpos($href, 'duckduckgo.com') !== false) return [];
+            if (strpos($href, 'yandex') !== false) return [];
+            $out[] = $href;
         }
         return $out;
     }
 
     private function extractCharactersFromWikidata(string $title): array
     {
-        $itemId = $this->wikidataFindItemId($title);
-        if (!$itemId) return [];
-        $chars = $this->wikidataGetCharacters($itemId);
-        return $chars;
+        $itemIds = $this->wikidataFindItemIds($title);
+        foreach ($itemIds as $itemId) {
+            $chars = $this->wikidataGetCharacters($itemId);
+            if (!empty($chars)) return $chars;
+        }
+        return [];
     }
 
-    private function wikidataFindItemId(string $title): ?string
+    private function wikidataFindItemIds(string $title): array
     {
-        foreach (['es','en'] as $lang) {
-            $url = "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" . urlencode($title) . "&language={$lang}&format=json";
+        $ids = [];
+        // Try searching specifically for book/novel first
+        $queries = [
+            $title . " book",
+            $title . " novel",
+            $title . " novela",
+            $title . " libro",
+            $title
+        ];
+        
+        foreach (['en', 'es'] as $lang) {
+            // Only use the title for search to get broader matches, filter by description later if needed
+            // Actually, querying with "novel" helps ranking.
+            $q = $title; 
+            $url = "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" . urlencode($q) . "&language={$lang}&format=json&limit=5";
             $json = $this->fetchUrl($url);
             if (!$json) continue;
             $data = json_decode($json, true);
-            if (!empty($data['search'][0]['id'])) {
-                return $data['search'][0]['id'];
+            if (!empty($data['search'])) {
+                foreach ($data['search'] as $item) {
+                    $ids[] = $item['id'];
+                }
             }
         }
-        return null;
+        return array_unique($ids);
     }
 
     private function wikidataGetCharacters(string $itemId): array
@@ -291,179 +1000,113 @@ class CharacterGenerator
         return ['label' => $label, 'description' => $desc, 'lang' => $lang];
     }
 
-    private function parseSparkNotes(string $url): array
+    private function parseFandomCharacters(string $url, string $html = null): array
     {
-        $html = $this->fetchUrl($url);
+        if (!$html) $html = $this->fetchUrl($url);
         if (!$html) return [];
+        
+        $out = [];
         $dom = new \DOMDocument();
         libxml_use_internal_errors(true);
         $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
         libxml_clear_errors();
         $xpath = new \DOMXPath($dom);
+        
+        // Fandom usually has lists in <ul> or tables, often under "Characters" section
+        // Or specific category pages with class "category-page__member-link"
+        
+        // 1. Category page links
+        $nodes = $xpath->query('//a[contains(@class, "category-page__member-link")]');
+        foreach ($nodes as $node) {
+            $name = trim($node->textContent);
+            $href = $node->getAttribute('href');
+            if ($name && $this->isValidCharacterName($name)) {
+                 $fullUrl = (strpos($href, 'http') === 0) ? $href : parse_url($url, PHP_URL_SCHEME) . '://' . parse_url($url, PHP_URL_HOST) . $href;
+                 $out[] = ['name' => $name, 'description' => '', 'url' => $fullUrl, 'lang' => 'en'];
+            }
+        }
+        
+        if (!empty($out)) return $out;
+
+        // 2. Standard list page
+        // Look for <b>Name</b> or links inside lists
+        $nodes = $xpath->query('//div[contains(@class, "mw-parser-output")]//ul/li/b | //div[contains(@class, "mw-parser-output")]//ul/li/a');
+        foreach ($nodes as $node) {
+             $name = trim($node->textContent);
+             if ($name && $this->isValidCharacterName($name) && strlen($name) > 2) {
+                 $href = ($node->nodeName === 'a') ? $node->getAttribute('href') : '';
+                 $fullUrl = ($href && strpos($href, 'http') !== 0) ? parse_url($url, PHP_URL_SCHEME) . '://' . parse_url($url, PHP_URL_HOST) . $href : $href;
+                 $out[] = ['name' => $name, 'description' => '', 'url' => $fullUrl, 'lang' => 'en'];
+             }
+        }
+        
+        return array_slice($out, 0, 20);
+    }
+
+    private function parseWikipediaCharacterList(string $url, string $html = null): array
+    {
+        if (!$html) $html = $this->fetchUrl($url);
+        if (!$html) return [];
+        
         $out = [];
-        // common patterns
-        $cards = $xpath->query('//a[contains(@href,"/characters/")]|//li//a[contains(@href,"character")]');
-        foreach ($cards as $link) {
-            $name = trim($link->textContent);
-            if (!$name || strlen($name) < 2) continue;
-            $href = $link->getAttribute('href');
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+
+        // Strategy 1: Look for "Characters" section or similar lists
+        // Typically: <ul><li><b>Name</b>: Description...</li></ul> or <ul><li><a href="...">Name</a>: ...</li></ul>
+        $nodes = $xpath->query('//div[contains(@class,"mw-parser-output")]//ul/li');
+        
+        foreach ($nodes as $node) {
+            $name = '';
             $desc = '';
-            // Try nearby paragraph
-            $p = $link->parentNode ? $xpath->query('.//p', $link->parentNode)->item(0) : null;
-            if ($p) $desc = trim($p->textContent);
-            $out[] = ['name' => $name, 'description' => $desc, 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 6) break;
+            
+            // Check for bold tag at start
+            $bold = $xpath->query('.//b', $node)->item(0);
+            if ($bold) {
+                $name = trim($bold->textContent);
+                $desc = trim(str_replace($name, '', $node->textContent));
+                // Remove colon if present
+                $desc = ltrim($desc, ":- \t\n\r\0\x0B");
+            } else {
+                // Check for anchor tag at start
+                $anchor = $xpath->query('.//a', $node)->item(0);
+                if ($anchor) {
+                    $name = trim($anchor->textContent);
+                    $desc = trim(str_replace($name, '', $node->textContent));
+                    $desc = ltrim($desc, ":- \t\n\r\0\x0B");
+                }
+            }
+            
+            // Validate name
+            if ($name && $this->isValidCharacterName($name) && strlen($name) > 2) {
+                // If description is too short, maybe it's just a link
+                $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+            }
         }
+        
+        // If few results, fallback to generic parser
+        if (count($out) < 3) {
+            return $this->parseGenericCharacterListPage($url, $html);
+        }
+        
         return $out;
     }
 
-    private function parseShmoop(string $url): array
+    private function parseGenericCharacterListPage(string $url, string $html = null): array
     {
-        $html = $this->fetchUrl($url);
+        if (!$html) $html = $this->fetchUrl($url);
         if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
+        $names = $this->parseNamesFromHtml($html);
         $out = [];
-        $links = $xpath->query('//a[contains(@href,"/characters/")]|//a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")]');
-        foreach ($links as $a) {
-            $name = trim($a->textContent);
-            if (!$name) continue;
-            $href = $a->getAttribute('href');
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 6) break;
-        }
-        return $out;
-    }
-
-    private function parseLitCharts(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $links = $xpath->query('//a[contains(@href,"/lit/") and contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"characters")] | //a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")]');
-        foreach ($links as $a) {
-            $name = trim($a->textContent);
-            if (!$name || !$this->isValidCharacterName($name)) continue;
-            $href = $a->getAttribute('href');
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 8) break;
-        }
-        return $out;
-    }
-
-    private function parseBookAnalysis(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $links = $xpath->query('//a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")]|//h2|//h3');
-        foreach ($links as $node) {
-            $name = trim($node->textContent);
-            if (!$name || strlen($name) < 2) continue;
-            if (!$this->isValidCharacterName($name)) continue;
-            $href = $node->nodeName === 'a' ? $node->getAttribute('href') : '';
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 8) break;
-        }
-        return $out;
-    }
-
-    private function parseSuperSummary(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $links = $xpath->query('//a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")] | //h2 | //h3');
-        foreach ($links as $node) {
-            $name = trim($node->textContent);
-            if (!$name || !$this->isValidCharacterName($name)) continue;
-            $href = $node->nodeName === 'a' ? $node->getAttribute('href') : '';
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 10) break;
-        }
-        return $out;
-    }
-
-    private function parseCliffsNotes(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $links = $xpath->query('//a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")] | //h2 | //h3 | //strong');
-        foreach ($links as $node) {
-            $name = trim($node->textContent);
-            if (!$name || !$this->isValidCharacterName($name)) continue;
-            $href = $node->nodeName === 'a' ? $node->getAttribute('href') : '';
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 10) break;
-        }
-        return $out;
-    }
-
-    private function parseENotes(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $links = $xpath->query('//a[contains(translate(@href,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"character")] | //h2 | //h3 | //li');
-        foreach ($links as $node) {
-            $name = trim($node->textContent);
-            if (!$name || !$this->isValidCharacterName($name)) continue;
-            $href = $node->nodeName === 'a' ? $node->getAttribute('href') : '';
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 10) break;
-        }
-        return $out;
-    }
-
-    private function parsePublisherPage(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $nodes = $xpath->query('//h2|//h3|//li|//p');
-        foreach ($nodes as $n) {
-            $name = trim($n->textContent);
-            if (!$name || strlen($name) < 2) continue;
-            if (!$this->isValidCharacterName($name)) continue;
+        foreach ($names as $name) {
             $out[] = ['name' => $name, 'description' => '', 'url' => $url, 'lang' => 'en'];
-            if (count($out) >= 6) break;
         }
         return $out;
     }
+
     private function parseNamesFromUrl(string $url): array
     {
         $html = $this->fetchUrl($url);
@@ -497,63 +1140,6 @@ class CharacterGenerator
         }
         $uniq = array_values(array_unique($cands));
         return array_slice($uniq, 0, 8);
-    }
-    private function parseGenericCharacterListPage(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        $lis = $xpath->query('//li');
-        foreach ($lis as $li) {
-            $text = trim($li->textContent);
-            if (!$text || strlen($text) < 4) continue;
-            $nameNode = $xpath->query('.//b|.//a', $li)->item(0);
-            $name = $nameNode ? trim($nameNode->textContent) : strtok($text, '–-—:');
-            if (!$name || strlen($name) < 2) continue;
-            $link = $xpath->query('.//a', $li)->item(0);
-            $href = $link ? $link->getAttribute('href') : '';
-            $out[] = ['name' => $name, 'description' => $this->shorten($text), 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 20) break;
-        }
-        return $out;
-    }
-
-    private function parseFandomCharacters(string $url): array
-    {
-        $html = $this->fetchUrl($url);
-        if (!$html) return [];
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
-        libxml_clear_errors();
-        $xpath = new \DOMXPath($dom);
-        $out = [];
-        // Try category members grid
-        $links = $xpath->query('//a[contains(@class,"category-page__member-link")]');
-        if ($links->length === 0) {
-            // Fallback: any link to /wiki/ that looks like character
-            $links = $xpath->query('//a[contains(@href,"/wiki/")]');
-        }
-        foreach ($links as $a) {
-            $name = trim($a->textContent);
-            if (!$name || !$this->isValidCharacterName($name)) continue;
-            $href = $a->getAttribute('href');
-            if ($href && strpos($href, 'http') !== 0) {
-                // make absolute if relative
-                $parse = parse_url($url);
-                $base = $parse['scheme'] . '://' . $parse['host'];
-                if ($href[0] !== '/') $href = '/' . $href;
-                $href = $base . $href;
-            }
-            $out[] = ['name' => $name, 'description' => '', 'url' => $href, 'lang' => 'en'];
-            if (count($out) >= 12) break;
-        }
-        return $out;
     }
 
     private function mergeCharacterLists(array $a, array $b): array
@@ -855,41 +1441,57 @@ class CharacterGenerator
         return $this->sanitizePrompt($prompt);
     }
 
-    private function fetchUrl($url)
+    private function fetchUrl($url, $timeout = 15)
     {
-        static $cache = [];
+        // echo "[DEBUG] fetchUrl called for $url (timeout $timeout)\n";
+        // static $cache = [];
         static $last = 0;
-        if (isset($cache[$url])) return $cache[$url];
-        if ($this->timeboxStart > 0 && (microtime(true) - $this->timeboxStart) > 20.0) {
+        // if (isset($cache[$url])) return $cache[$url];
+        if ($this->timeboxStart > 0 && (microtime(true) - $this->timeboxStart) > 100.0) {
             return null;
         }
-        $opts = [
-            "http" => [
-                "method" => "GET",
-                "header" => "User-Agent: BookVibes/1.0 (http://example.com/contact)\r\n",
-                "timeout" => 6
-            ],
-            "ssl" => [
-                "verify_peer" => false,
-                "verify_peer_name" => false,
-                "allow_self_signed" => true
-            ]
-        ];
-        $context = stream_context_create($opts);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // Connect timeout
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        // Use a real browser User-Agent to avoid blocking
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language: es-ES,es;q=0.9,en;q=0.8",
+            "Referer: https://www.google.com/"
+        ]);
+        
         $retries = 1;
         while ($retries-- > 0) {
+            // echo "[DEBUG] fetchUrl loop retry $retries\n";
             $now = microtime(true);
-            if ($now - $last < 0.2) {
-                usleep((int)((0.2 - ($now - $last)) * 1e6));
+            if ($now - $last < 1.0) { // Increase delay
+                usleep((int)((1.0 - ($now - $last)) * 1e6));
             }
-            $resp = file_get_contents($url, false, $context);
+            
+            $resp = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            // echo "[DEBUG] fetchUrl result: Code $httpCode, Err: $err, Len: " . strlen($resp ?? '') . "\n";
             $last = microtime(true);
-            if ($resp !== false && strlen($resp) > 0) {
-                $cache[$url] = $resp;
+            
+            if ($resp !== false && $httpCode >= 200 && $httpCode < 400 && strlen($resp) > 0) {
+                curl_close($ch);
+                // $cache[$url] = $resp;
                 return $resp;
+            } else {
+                // echo "[Trace] fetchUrl failed for $url: Code $httpCode, Err: $err\n";
             }
-            usleep(150000);
+            
+            if ($retries > 0) usleep(1000000);
         }
+        curl_close($ch);
         return null;
     }
 
@@ -1012,7 +1614,7 @@ class CharacterGenerator
                 CURLOPT_TIMEOUT => 15,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_USERAGENT => "BookVibes/1.0 (Character Scraper)"
+                CURLOPT_USERAGENT => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ]);
             curl_multi_add_handle($mh, $ch);
             $chs[$i++] = $ch;
@@ -1037,6 +1639,15 @@ class CharacterGenerator
         if ($trim === '') return false;
         // Reject if mostly lowercase single word (likely not proper noun)
         if (preg_match('/^[a-záéíóúñü]+$/u', $trim)) return false;
+        
+        // Stopwords blacklist (English and Spanish)
+        $stopwords = [
+            'The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'They', 'We', 'You', 'I', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'About', 'As', 'If', 'But', 'Or', 'And', 'Not', 'No', 'Yes', 'So', 'Then', 'Else', 'When', 'Where', 'Why', 'How', 'Which', 'Who', 'What', 'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being', 'Has', 'Have', 'Had', 'Do', 'Does', 'Did', 'Can', 'Could', 'Will', 'Would', 'Shall', 'Should', 'May', 'Might', 'Must', 'My', 'Your', 'His', 'Her', 'Its', 'Our', 'Their', 'Each', 'These', 'Those', 'Some', 'Any', 'All', 'Many', 'Much', 'Few', 'Little', 'Other', 'Another', 'Such', 'Same', 'Different', 'Own', 'Very', 'Too', 'Also', 'Just', 'Now', 'Only', 'Even', 'Still', 'Back', 'Here', 'There', 'Up', 'Down', 'Out', 'Over', 'Under', 'Above', 'Below', 'Between', 'Through', 'Into', 'During', 'Before', 'After', 'Since', 'Until', 'While', 'Although', 'Though', 'Because', 'Unless', 'However', 'Therefore', 'Thus', 'Hence', 'Yet', 'Nor', 'Philosopher', 'Stone', 'British', 'Rowling', 'Book', 'Series', 'List', 'Page', 'Edit', 'History', 'Talk', 'Main', 'Article', 'Read', 'View', 'Source', 'Search', 'Navigation', 'Contribute', 'Tools', 'Print', 'Languages', 'Download', 'Help', 'Community', 'Portal', 'Recent', 'Changes', 'Upload', 'File', 'Special', 'Pages', 'Permanent', 'Link', 'Cite', 'Create', 'Account', 'Log', 'User', 'Talk', 'Contributions', 'Preferences', 'Watchlist',
+            'El', 'La', 'Los', 'Las', 'Un', 'Una', 'Unos', 'Unas', 'Este', 'Esta', 'Estos', 'Estas', 'Ese', 'Esa', 'Esos', 'Esas', 'Aquel', 'Aquella', 'Aquellos', 'Aquellas', 'Yo', 'Tu', 'Ella', 'Ellos', 'Ellas', 'Nosotros', 'Vosotros', 'Usted', 'Ustedes', 'Mi', 'Su', 'Nuestro', 'Vuestro', 'Sus', 'Que', 'Quien', 'Cual', 'Donde', 'Cuando', 'Como', 'Por', 'Para', 'Con', 'Sin', 'Sobre', 'Entre', 'Hasta', 'Desde', 'Durante', 'Antes', 'Despues', 'Mientras', 'Aunque', 'Pero', 'Sino', 'Ni', 'Si', 'Tal', 'Tan', 'Muy', 'Mas', 'Menos', 'Mucho', 'Poco', 'Todo', 'Nada', 'Algo', 'Alguien', 'Nadie', 'Algun', 'Ningun', 'Otro', 'Mismo', 'Editar', 'Historial', 'Discusion', 'Leer', 'Ver', 'Fuente', 'Buscar', 'Navegacion', 'Contribuir', 'Herramientas', 'Imprimir', 'Idiomas', 'Descargar', 'Ayuda', 'Comunidad', 'Cambios', 'Subir', 'Archivo', 'Especial', 'Paginas', 'Enlace', 'Citar', 'Crear', 'Cuenta', 'Acceder', 'Usuario', 'Contribuciones', 'Preferencias', 'Lista', 'Seguimiento'
+        ];
+        
+        if (in_array($trim, $stopwords)) return false;
+
         // Accept if contains space with capitalized words or starts uppercase
         if (preg_match('/^([A-ZÁÉÍÓÚÑÜ][\\p{L}\\-]+)(\\s+y\\s+[A-ZÁÉÍÓÚÑÜ][\\p{L}\\-]+|\\s+[A-ZÁÉÍÓÚÑÜ][\\p{L}\\-]+)*/u', $trim)) return true;
         // Otherwise require first letter uppercase
@@ -1065,8 +1676,8 @@ class CharacterGenerator
 
     private function cacheKey(string $title, string $author): string
     {
-        $key = $this->mbLower(trim($title . '|' . $author));
-        $key = preg_replace('/[^a-z0-9\-\|]+/i', '_', $key);
+        $key = $this->mbLower(trim($title . '_' . $author));
+        $key = preg_replace('/[^a-z0-9\-]+/i', '_', $key);
         return $key;
     }
 
