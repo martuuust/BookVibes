@@ -102,7 +102,7 @@
         padding: 0;
     }
     .navbar-logo {
-        height: 80px;
+        height: 100px;
         width: auto;
         mix-blend-mode: multiply;
     }
@@ -262,6 +262,23 @@
         }
         .playlist-track:hover { background: rgba(255, 255, 255, 0.03); }
         
+        .song-icon {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            flex: 0 0 42px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
+            aspect-ratio: 1 / 1;
+        }
+
         /* Stars */
         #stars-container {
             position: absolute;
@@ -373,16 +390,20 @@ body:not(.dark-mode) .btn-outline-light:hover {
             transform: translateY(0);
         }
         .player-art {
-            width: 56px;
-            height: 56px;
-            background: var(--primary-gradient);
-            border-radius: 12px;
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            flex: 0 0 42px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
+            aspect-ratio: 1 / 1;
         }
         .ai-visualizer {
             position: absolute;
@@ -432,16 +453,16 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 <i id="darkModeIcon" class="bi bi-moon-fill fs-4"></i>
             </button>
             <div class="d-none d-md-block text-end lh-1 navbar-text-light">
-            <span class="d-block fw-semibold" style="font-size: 1.1rem;">Hola, <?= htmlspecialchars($userName) ?></span>
+            <span class="d-block fw-semibold" style="font-size: 1rem;">Hola, <?= htmlspecialchars($userName) ?></span>
         </div>
         <?php if($isPro): ?>
             <a href="/pro/settings" class="text-decoration-none">
-                <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 1rem; cursor: pointer;">Pro</span>
+                <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 0.9rem; cursor: pointer;">Pro</span>
             </a>
         <?php else: ?>
-            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 1rem;">Básica</span>
+            <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 0.9rem;">Básica</span>
         <?php endif; ?>
-        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-4 py-2" style="font-size: 1rem;">Cerrar Sesión</a>
+        <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1" style="font-size: 0.9rem;">Cerrar Sesión</a>
     </div>
   </div>
 </nav>
@@ -577,11 +598,11 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                             </div>
                                             
                                             <?php if($isAi): ?>
-                                                 <button type="button" class="btn-listen" onclick='playAiTrack(<?= json_encode($song['title']) ?>, <?= json_encode($song['lyrics'] ?? '') ?>, <?= json_encode($song['melody_description'] ?? '') ?>, <?= json_encode($book['mood'] ?? 'Misterio') ?>, <?= $variation ?>)'>
+                                                 <button type="button" class="btn-listen" onclick='playSongAtIndex(<?= $i - 1 ?>)'>
                                                     <i class="bi bi-play-fill"></i>
                                                 </button>
                                             <?php else: ?>
-                                                <button type="button" class="btn-listen" onclick="playYouTubeTrack('<?= htmlspecialchars($song['url']) ?>', '<?= htmlspecialchars(addslashes($song['title'])) ?>', '<?= htmlspecialchars(addslashes($song['artist'])) ?>')">
+                                                <button type="button" class="btn-listen" onclick="playSongAtIndex(<?= $i - 1 ?>)">
                                                     <i class="bi bi-play-fill"></i>
                                                 </button>
                                             <?php endif; ?>
@@ -648,6 +669,11 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                         <a href="/spotify/create?book_id=<?= urlencode($book['id']) ?>" class="btn btn-spotify btn-sm">
                                             <i class="bi bi-spotify me-2"></i>Guardar en Spotify
                                         </a>
+                                    </div>
+                                    <div class="d-grid mt-2">
+                                        <button onclick="regeneratePlaylist()" class="btn btn-outline-warning btn-sm">
+                                            <i class="bi bi-arrow-repeat me-2"></i>Regenerar Playlist
+                                        </button>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -1013,6 +1039,37 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         list.prepend(col);
     }
 
+    function regeneratePlaylist() {
+        if(!confirm('¿Estás seguro de que quieres regenerar la playlist? Se perderán las canciones actuales y se generarán nuevas.')) return;
+        
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Regenerando...';
+        
+        fetch('/books/regenerate-playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.ok) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        })
+        .catch(e => {
+            console.error(e);
+            alert('Error de conexión');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+
     // Handle vinyl play
     let currentAudio = null;
     let currentVinyl = null;
@@ -1060,11 +1117,11 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 </div>
                 
                 <div class="d-flex align-items-center gap-3 justify-content-center" style="width: 40%;">
-                    <button id="player-prev" class="btn btn-link text-white p-0 opacity-50"><i class="bi bi-skip-start-fill fs-4"></i></button>
+                    <button id="player-prev" onclick="playPrev(event)" class="btn btn-link text-white p-0" style="opacity: 0.3; cursor: default;" disabled><i class="bi bi-skip-start-fill fs-4"></i></button>
                     <button id="player-play-pause" onclick="togglePlay()" class="btn btn-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
                         <i class="bi bi-play-fill fs-4"></i>
                     </button>
-                    <button id="player-next" class="btn btn-link text-white p-0 opacity-50"><i class="bi bi-skip-end-fill fs-4"></i></button>
+                    <button id="player-next" onclick="playNext(event)" class="btn btn-link text-white p-0" style="opacity: 0.3; cursor: default;" disabled><i class="bi bi-skip-end-fill fs-4"></i></button>
                 </div>
                 
                 <div class="d-flex align-items-center justify-content-end gap-3" style="width: 30%;">
@@ -1076,6 +1133,103 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         </div>
 
         <script>
+        // Playlist Data
+        var PLAYLIST_SONGS = <?= !empty($playlist['songs']) ? json_encode(array_slice($playlist['songs'], 0, $limit)) : '[]' ?>;
+        var BOOK_MOOD = <?= json_encode($book['mood'] ?? 'Misterio') ?>;
+        let currentSongIndex = -1;
+
+        // Pre-calculate variations for AI songs to match PHP logic
+        if (Array.isArray(PLAYLIST_SONGS)) {
+            let aiCount = 0;
+            PLAYLIST_SONGS.forEach(song => {
+                if (song.is_ai_generated) {
+                    song.aiVariation = aiCount % 2;
+                    aiCount++;
+                }
+            });
+        }
+
+        function playSongAtIndex(index) {
+            // Ensure PLAYLIST_SONGS is valid
+            if (!PLAYLIST_SONGS || !Array.isArray(PLAYLIST_SONGS)) {
+                console.error("Playlist data missing");
+                return;
+            }
+            
+            // Bounds check
+            if (index < 0) index = 0;
+            if (index >= PLAYLIST_SONGS.length) index = PLAYLIST_SONGS.length - 1;
+
+            currentSongIndex = index;
+            const song = PLAYLIST_SONGS[index];
+            
+            // Update buttons immediately to reflect new state
+            updatePlayerButtons();
+            
+            try {
+                if (song.is_ai_generated) {
+                    playAiTrack(song.title, song.lyrics, song.melody_description, BOOK_MOOD, song.aiVariation);
+                } else {
+                    playYouTubeTrack(song.url, song.title, song.artist);
+                }
+            } catch (e) {
+                console.error("Playback error:", e);
+                // Even if playback fails, we updated the index, so buttons should remain correct
+            }
+        }
+
+        function playNext(e) {
+            if(e) e.preventDefault();
+            if (currentSongIndex < PLAYLIST_SONGS.length - 1) {
+                playSongAtIndex(currentSongIndex + 1);
+            }
+        }
+
+        function playPrev(e) {
+            if(e) e.preventDefault();
+            if (currentSongIndex > 0) {
+                playSongAtIndex(currentSongIndex - 1);
+            }
+        }
+
+        function updatePlayerButtons() {
+            const prevBtn = document.getElementById('player-prev');
+            const nextBtn = document.getElementById('player-next');
+            
+            if (!prevBtn || !nextBtn) return;
+            
+            // Safety check for empty playlist
+            if (!PLAYLIST_SONGS || PLAYLIST_SONGS.length === 0) {
+                prevBtn.disabled = true;
+                prevBtn.style.opacity = '0.3';
+                nextBtn.disabled = true;
+                nextBtn.style.opacity = '0.3';
+                return;
+            }
+
+            // Prev Button
+            if (currentSongIndex > 0) {
+                prevBtn.disabled = false;
+                prevBtn.style.opacity = '1';
+                prevBtn.style.cursor = 'pointer';
+            } else {
+                prevBtn.disabled = true;
+                prevBtn.style.opacity = '0.3';
+                prevBtn.style.cursor = 'default';
+            }
+
+            // Next Button
+            if (currentSongIndex < PLAYLIST_SONGS.length - 1) {
+                nextBtn.disabled = false;
+                nextBtn.style.opacity = '1';
+                nextBtn.style.cursor = 'pointer';
+            } else {
+                nextBtn.disabled = true;
+                nextBtn.style.opacity = '0.3';
+                nextBtn.style.cursor = 'default';
+            }
+        }
+
             let isPlaying = false;
             let currentMode = null; // 'youtube' or 'ai'
             let audioContext = null;
@@ -1543,6 +1697,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="list-group list-group-flush">
                 `;
 
+                // Update Global Playlist Data for Player Navigation
+                if (window.PLAYLIST_SONGS) {
+                    window.PLAYLIST_SONGS = songs;
+                    window.BOOK_MOOD = data.playlist.mood || 'Misterio';
+                    
+                    // Recalculate AI variations
+                    let aiCount = 0;
+                    window.PLAYLIST_SONGS.forEach(song => {
+                        if (song.is_ai_generated) {
+                            song.aiVariation = aiCount % 2;
+                            aiCount++;
+                        }
+                    });
+                }
+
                 let aiCount = 0;
                 songs.forEach((song, index) => {
                     if (index >= limit) return;
@@ -1552,19 +1721,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const aiBadge = isAi ? '<span class="badge bg-primary me-1" style="font-size: 0.6em; vertical-align: middle;">AI ORIGINAL</span>' : '';
                     const melodyDesc = isAi ? `<small class="text-info d-block" style="font-size: 0.75em;">${song.melody_description || ''}</small>` : '';
                     
-                    let playBtn = '';
-                    if (isAi) {
-                        const safeTitle = JSON.stringify(song.title).replace(/'/g, "&#39;");
-                        const safeLyrics = JSON.stringify(song.lyrics || '').replace(/'/g, "&#39;");
-                        const safeMelody = JSON.stringify(song.melody_description || '').replace(/'/g, "&#39;");
-                        const safeMood = JSON.stringify(data.playlist.mood || 'General').replace(/'/g, "&#39;");
-                        playBtn = `<button type="button" class="btn-listen" onclick='playAiTrack(${safeTitle}, ${safeLyrics}, ${safeMelody}, ${safeMood}, ${variation})'><i class="bi bi-play-fill"></i></button>`;
-                    } else {
-                         const safeUrl = (song.url || '').replace(/'/g, "\\'");
-                         const safeTitle = (song.title || '').replace(/'/g, "\\'");
-                         const safeArtist = (song.artist || '').replace(/'/g, "\\'");
-                         playBtn = `<button type="button" class="btn-listen" onclick="playYouTubeTrack('${safeUrl}', '${safeTitle}', '${safeArtist}')"><i class="bi bi-play-fill"></i></button>`;
-                    }
+                    // Use playSongAtIndex for unified player control
+                    let playBtn = `<button type="button" class="btn-listen" onclick="playSongAtIndex(${index})"><i class="bi bi-play-fill"></i></button>`;
 
                     html += `
                     <div class="playlist-track ${aiClass}">

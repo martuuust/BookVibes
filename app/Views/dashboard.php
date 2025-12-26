@@ -22,16 +22,16 @@
                 <i id="darkModeIcon" class="bi bi-moon-fill fs-4"></i>
             </button>
             <div class="d-none d-md-block text-end lh-1 navbar-text-light">
-                <span class="d-block fw-semibold" style="font-size: 1.1rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
+                <span class="d-block fw-semibold" style="font-size: 1rem;">Hola, <?= htmlspecialchars($user_name) ?></span>
             </div>
             <?php if($isPro): ?>
                 <a href="/pro/settings" class="text-decoration-none">
-                    <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 1rem; cursor: pointer;">Pro</span>
+                    <span class="badge bg-gradient border border-light border-opacity-25" style="background-color: #8b5cf6; font-size: 0.9rem; cursor: pointer;">Pro</span>
                 </a>
             <?php else: ?>
-                <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 1rem;">Básica</span>
+                <span class="badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25" style="font-size: 0.9rem;">Básica</span>
             <?php endif; ?>
-            <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-3 px-md-4 py-2" style="font-size: 1rem;">
+            <a href="/logout" class="btn btn-outline-light btn-sm rounded-pill px-2 px-md-3 py-1" style="font-size: 0.9rem;">
                 <span class="d-none d-md-inline">Cerrar Sesión</span>
                 <i class="bi bi-box-arrow-right d-md-none"></i>
             </a>
@@ -322,7 +322,7 @@ body:not(.dark-mode) .btn-outline-light:hover {
         padding: 0;
     }
     .navbar-logo {
-        height: 80px;
+        height: 100px;
         width: auto;
         mix-blend-mode: multiply;
     }

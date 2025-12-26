@@ -137,9 +137,12 @@ class YouTubeSearchService
     {
         $t = mb_strtolower($title);
         $bad = [
-            'cover','karaoke','reaction','remix','sped up','slowed','8d','nightcore',
-            'live','tribute','fan made','mashup','mix','compilation',
-            'full album','playlist','audio only','teaser','snippet'
+            'cover', 'karaoke', 'reaction', 'remix', 'sped up', 'slowed', '8d', 'nightcore',
+            'live', 'tribute', 'fan made', 'mashup', 'mix', 'compilation',
+            'full album', 'playlist', 'audio only', 'teaser', 'snippet',
+            'instrumental', 'backing track', 'no vocals', 'tutorial', 'lesson',
+            '1 hour', '10 hours', 'loop', 'ambient', 'study music', 'lofi',
+            'soundtrack score', 'original score', 'ost full', 'theme extended'
         ];
         foreach ($bad as $b) {
             if (str_contains($t, $b)) return true;
@@ -152,27 +155,38 @@ class YouTubeSearchService
         $title = mb_strtolower($t['title'] ?? '');
         $artist = mb_strtolower($t['artist'] ?? '');
         $score = 0;
-        if (str_contains($title, 'official video')) $score += 8;
-        if (str_contains($title, 'lyrics')) $score += 6;
-        if (str_contains($title, 'official audio')) $score += 3;
-        if (str_contains($title, 'visualizer')) $score += 1;
-        if (str_contains($artist, 'vevo')) $score += 6;
-        if (str_contains($artist, 'topic')) $score += 2;
-        if (str_contains($artist, 'official') || str_contains($artist, 'records') || str_contains($artist, 'music')) $score += 2;
+        
+        // Positive signals for real songs
+        if (str_contains($title, 'official video')) $score += 10;
+        if (str_contains($title, 'music video')) $score += 8;
+        if (str_contains($title, 'lyrics')) $score += 7;
+        if (str_contains($title, 'official audio')) $score += 5;
+        if (str_contains($title, 'visualizer')) $score += 2;
+        
+        // Artist verification
+        if (str_contains($artist, 'vevo')) $score += 8;
+        if (str_contains($artist, 'topic')) $score += 4;
+        if (str_contains($artist, 'official') || str_contains($artist, 'records') || str_contains($artist, 'music')) $score += 3;
         if (strlen($artist) > 0) $score += 1;
-        // preferred mainstream artists boost
+        
+        // Preferred mainstream artists boost
         foreach ($preferredArtists as $pa) {
-            if ($pa && str_contains($artist, mb_strtolower($pa))) {
-                $score += 10;
+            if ($pa && (str_contains($artist, mb_strtolower($pa)) || str_contains($title, mb_strtolower($pa)))) {
+                $score += 15; // Huge boost for requested artists
                 break;
             }
         }
-        // penalize old or irrelevant formats
-        if (str_contains($title, 'top ') || str_contains($title, 'playlist') || str_contains($title, 'full album')) $score -= 6;
-        if (str_contains($title, 'instrumental') || str_contains($title, 'live') || str_contains($title, 'acoustic version')) $score -= 4;
+        
+        // Penalize unwanted formats
+        if (str_contains($title, 'top ') || str_contains($title, 'playlist') || str_contains($title, 'full album')) $score -= 10;
+        if (str_contains($title, 'instrumental') || str_contains($title, 'karaoke')) $score -= 20;
+        if (str_contains($title, 'live') || str_contains($title, 'concert') || str_contains($title, 'acoustic version')) $score -= 5;
+        if (str_contains($title, 'behind the scenes') || str_contains($title, 'making of')) $score -= 20;
+        
+        // Penalize age slightly, but good songs are timeless
         $years = (int)($t['years_ago'] ?? 0);
-        if ($years >= 8) $score -= 8;
-        elseif ($years >= 5) $score -= 4;
+        if ($years >= 20) $score -= 2; // Classic hits are fine, just slight penalty
+        
         return $score;
     }
 

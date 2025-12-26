@@ -40,6 +40,7 @@ $router->post('/books/generate-characters', [App\Controllers\BookController::cla
 $router->post('/books/fetch-character-list', [App\Controllers\BookController::class, 'fetchCharacterList']);
 $router->post('/books/generate-single-character', [App\Controllers\BookController::class, 'generateSingleCharacter']);
 $router->post('/books/generate-playlist', [App\Controllers\BookController::class, 'apiGeneratePlaylist']);
+$router->post('/books/regenerate-playlist', [App\Controllers\BookController::class, 'apiRegeneratePlaylist']);
 
 $router->get('/spotify/connect', [App\Controllers\BookController::class, 'spotifyConnect']);
 $router->get('/spotify/callback', [App\Controllers\BookController::class, 'spotifyCallback']);

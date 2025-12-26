@@ -186,8 +186,8 @@ class AISongGeneratorService
      */
     private function generateUniqueTitle(string $bookTitle, string $mood, array $keywords, int $index): string
     {
-        // Create a unique seed based on book title and index
-        $seed = crc32($bookTitle . $index);
+        // Create a unique seed based on book title, index AND random component for variety
+        $seed = crc32($bookTitle . $index . uniqid());
         
         $titlePatterns = [
             // Pattern 1: Keyword-based
@@ -509,8 +509,8 @@ class AISongGeneratorService
     {
         $lines = [];
         
-        // Create seed from book title and part for deterministic but unique selection
-        $seed = crc32($vars['title'] . $part);
+        // Create seed from book title and part AND random component for variety
+        $seed = crc32($vars['title'] . $part . uniqid());
         
         if (strpos($part, 'Intro') !== false) {
             $introTemplates = $templates['intro'];

@@ -374,6 +374,23 @@ class BookController extends Controller
         }
     }
 
+    public function apiRegeneratePlaylist(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        
+        if (!$bookId) {
+            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
+        }
+
+        // Delete existing playlist
+        Playlist::deleteByBookId($bookId);
+
+        // Forward to generate new playlist
+        return $this->apiGeneratePlaylist($request);
+    }
+
     public function upload()
     {
         if (session_status() === PHP_SESSION_NONE) session_start();

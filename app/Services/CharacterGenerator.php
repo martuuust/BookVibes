@@ -214,7 +214,7 @@ class CharacterGenerator
                         $cleanT = preg_replace('/\(novel|\(book|\(libro|\(novela|\)/i', '', $t);
                         $cleanT = trim($cleanT);
                         
-                        similar_text(mb_strtolower($title), mb_strtolower($cleanT), $sim);
+                        similar_text($this->mbLower($title), $this->mbLower($cleanT), $sim);
                          if ($sim > 70 || stripos($cleanT, $title) !== false || stripos($title, $cleanT) !== false) {
                               return ['title' => $t, 'lang' => $lang];
                          }
@@ -226,7 +226,7 @@ class CharacterGenerator
                     }
                     
                     // Fuzzy match (similarity > 80%)
-                    similar_text(mb_strtolower($title), mb_strtolower($t), $percent);
+                    similar_text($this->mbLower($title), $this->mbLower($t), $percent);
                     if ($percent > 80) {
                          return ['title' => $t, 'lang' => $lang];
                     }
@@ -242,7 +242,7 @@ class CharacterGenerator
                      
                      if (!$author || stripos($top, $author) === false) {
                          // Check similarity
-                         similar_text(mb_strtolower($title), mb_strtolower($cleanTop), $sim);
+                         similar_text($this->mbLower($title), $this->mbLower($cleanTop), $sim);
                          if ($sim > 70 || stripos($cleanTop, $title) !== false || stripos($title, $cleanTop) !== false) {
                              return ['title' => $top, 'lang' => $lang];
                          }
@@ -379,7 +379,7 @@ class CharacterGenerator
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 8); // Increased to 8s
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Increased to 15s
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
@@ -399,7 +399,7 @@ class CharacterGenerator
             if ($running > 0) {
                 curl_multi_select($mh, 0.1);
             }
-            if (microtime(true) - $start > 9.0) break; // Global safety timeout
+            if (microtime(true) - $start > 20.0) break; // Global safety timeout
         } while ($running > 0 && $status === CURLM_OK);
 
         foreach ($handles as $h) {
@@ -685,7 +685,8 @@ class CharacterGenerator
         $cleanTitleNoSpaces = str_replace(' ', '', $cleanTitle);
         $cleanTitleUnderscore = str_replace(' ', '_', $title); // Keep case for Wikipedia? No, usually Capitalized.
         // Wikipedia uses underscores and case sensitivity. "Harry Potter and the Philosopher's Stone"
-        $wikiTitle = str_replace(' ', '_', ucwords($title));
+        $wikiTitleTitleCase = str_replace(' ', '_', ucwords($title));
+        $wikiTitleRaw = str_replace(' ', '_', ucfirst($title));
         
         // 1. Basic: "Boys of Tommen" -> "boysoftommen"
         $slugs[] = $cleanTitleNoSpaces;
@@ -721,10 +722,16 @@ class CharacterGenerator
         }
         
         // Wikipedia URLs (English and Spanish)
-         $candidateUrls[] = "https://en.wikipedia.org/wiki/" . $wikiTitle;
-         $candidateUrls[] = "https://en.wikipedia.org/wiki/List_of_" . $wikiTitle . "_characters";
-         $candidateUrls[] = "https://es.wikipedia.org/wiki/" . $wikiTitle;
-         $candidateUrls[] = "https://es.wikipedia.org/wiki/Personajes_de_" . $wikiTitle;
+         $candidateUrls[] = "https://en.wikipedia.org/wiki/" . $wikiTitleTitleCase;
+         $candidateUrls[] = "https://en.wikipedia.org/wiki/List_of_" . $wikiTitleTitleCase . "_characters";
+         
+         // Spanish Wikipedia often uses Sentence case
+         $candidateUrls[] = "https://es.wikipedia.org/wiki/" . $wikiTitleRaw;
+         if ($wikiTitleRaw !== $wikiTitleTitleCase) {
+             $candidateUrls[] = "https://es.wikipedia.org/wiki/" . $wikiTitleTitleCase;
+         }
+         
+         $candidateUrls[] = "https://es.wikipedia.org/wiki/Personajes_de_" . $wikiTitleRaw;
          
          // Try "List of [First 2 Words] characters" for series (e.g. Harry Potter)
          if (count($words) >= 2 && strlen($words[0]) > 3 && strlen($words[1]) > 3) {
@@ -1045,6 +1052,7 @@ class CharacterGenerator
 
     private function parseWikipediaCharacterList(string $url, string $html = null): array
     {
+        // echo "[DEBUG] parseWikipediaCharacterList called for $url\n";
         if (!$html) $html = $this->fetchUrl($url);
         if (!$html) return [];
         
@@ -1055,41 +1063,149 @@ class CharacterGenerator
         libxml_clear_errors();
         $xpath = new \DOMXPath($dom);
 
-        // Strategy 1: Look for "Characters" section or similar lists
-        // Typically: <ul><li><b>Name</b>: Description...</li></ul> or <ul><li><a href="...">Name</a>: ...</li></ul>
-        $nodes = $xpath->query('//div[contains(@class,"mw-parser-output")]//ul/li');
-        
+        // Get all headers and lists in document order
+        $nodes = $xpath->query('//h2 | //h3 | //ul | //dl');
+        $currentSection = '';
+        $isCastSection = false;
+        $shouldProcess = false;
+
         foreach ($nodes as $node) {
-            $name = '';
-            $desc = '';
-            
-            // Check for bold tag at start
-            $bold = $xpath->query('.//b', $node)->item(0);
-            if ($bold) {
-                $name = trim($bold->textContent);
-                $desc = trim(str_replace($name, '', $node->textContent));
-                // Remove colon if present
-                $desc = ltrim($desc, ":- \t\n\r\0\x0B");
-            } else {
-                // Check for anchor tag at start
-                $anchor = $xpath->query('.//a', $node)->item(0);
-                if ($anchor) {
-                    $name = trim($anchor->textContent);
-                    $desc = trim(str_replace($name, '', $node->textContent));
-                    $desc = ltrim($desc, ":- \t\n\r\0\x0B");
+            if ($node->nodeName === 'h2' || $node->nodeName === 'h3') {
+                $currentSection = trim($node->textContent);
+                $titleLower = $this->mbLower($currentSection);
+                
+                $isCast = (
+                    strpos($titleLower, 'cast') !== false || 
+                    strpos($titleLower, 'reparto') !== false ||
+                    strpos($titleLower, 'elenco') !== false ||
+                    strpos($titleLower, 'actores') !== false
+                );
+                
+                $isCharacters = (
+                    strpos($titleLower, 'personajes') !== false ||
+                    strpos($titleLower, 'characters') !== false ||
+                    strpos($titleLower, 'protagonistas') !== false
+                );
+
+                $isListPage = (strpos($url, 'List_of') !== false || strpos($url, 'Personajes_de') !== false);
+
+                if ($isListPage) {
+                     // Exclude meta sections
+                     $isIgnored = (
+                        strpos($titleLower, 'referencias') !== false ||
+                        strpos($titleLower, 'references') !== false ||
+                        strpos($titleLower, 'enlaces externos') !== false ||
+                        strpos($titleLower, 'external links') !== false ||
+                        strpos($titleLower, 'véase también') !== false ||
+                        strpos($titleLower, 'see also') !== false ||
+                        strpos($titleLower, 'bibliografía') !== false ||
+                        strpos($titleLower, 'bibliography') !== false ||
+                        strpos($titleLower, 'contenidos') !== false ||
+                        strpos($titleLower, 'contents') !== false
+                     );
+                     $shouldProcess = !$isIgnored;
+                     $isCastSection = $isCast;
+                } else {
+                    // Main article: Strict whitelist
+                    $shouldProcess = $isCast || $isCharacters;
+                    $isCastSection = $isCast;
                 }
+                continue;
             }
-            
-            // Validate name
-            if ($name && $this->isValidCharacterName($name) && strlen($name) > 2) {
-                // If description is too short, maybe it's just a link
-                $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+
+            if (!$shouldProcess) continue;
+
+            if ($node->nodeName === 'ul') {
+                // if ($isCastSection) echo "[DEBUG] Processing UL in cast section\n";
+                $lis = $xpath->query('.//li', $node);
+                foreach ($lis as $li) {
+                    $text = trim($li->textContent);
+                    if (!$text) continue;
+
+                    $name = '';
+                    $desc = '';
+
+                    if ($isCastSection) {
+                        // Cast section logic: "Actor como Personaje", "Actor : Personaje", "Actor ... Personaje"
+                        // Try to split by common separators
+                        $separators = [' como ', ' interpreta a ', ' plays ', ' is ', ' in the role of ', ' as '];
+                        $foundSep = false;
+                        foreach ($separators as $sep) {
+                            if (stripos($text, $sep) !== false) {
+                                // echo "[DEBUG] Found separator '$sep' in '$text'\n";
+                                $parts = preg_split('/' . preg_quote($sep, '/') . '/i', $text, 2);
+                                if (count($parts) > 1) {
+                                    $potentialName = trim($parts[1]);
+                                    // Cleanup: remove dot at end, remove (season X) etc.
+                                    $potentialName = preg_replace('/[\.,]$/', '', $potentialName);
+                                    // Remove text in parentheses
+                                    $potentialName = preg_replace('/\s*\(.*?\)/', '', $potentialName);
+                                    
+                                    if ($this->isValidCharacterName($potentialName)) {
+                                        $name = $potentialName;
+                                        $desc = "Character in " . basename($url);
+                                        $foundSep = true;
+                                        // echo "[DEBUG] Extracted name: $name\n";
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // If no separator found, but we have a colon
+                        if (!$foundSep && strpos($text, ':') !== false) {
+                            $parts = explode(':', $text, 2);
+                            // Heuristic: usually Actor : Role. Role is 2nd part.
+                            $potentialName = trim($parts[1]);
+                            $potentialName = preg_replace('/[\.,]$/', '', $potentialName);
+                            if ($this->isValidCharacterName($potentialName)) {
+                                $name = $potentialName;
+                                $desc = "Character in " . basename($url);
+                                // echo "[DEBUG] Extracted name from colon: $name\n";
+                            }
+                        }
+
+                        // If still nothing, and the line is short, maybe it's just the character name (unlikely in cast list)
+                        // Skip if we can't identify role.
+                        if (!$name) continue;
+
+                    } else {
+                        // Standard logic for Character sections
+                        $bold = $xpath->query('.//b', $li)->item(0);
+                        if ($bold) {
+                            $name = trim($bold->textContent);
+                            $desc = trim(str_replace($name, '', $text));
+                            $desc = ltrim($desc, ":- \t\n\r\0\x0B");
+                        } else {
+                            $anchor = $xpath->query('.//a', $li)->item(0);
+                            if ($anchor) {
+                                $name = trim($anchor->textContent);
+                                $desc = trim(str_replace($name, '', $text));
+                                $desc = ltrim($desc, ":- \t\n\r\0\x0B");
+                            } else {
+                                // Try splitting by colon
+                                if (strpos($text, ':') !== false) {
+                                    $parts = explode(':', $text, 2);
+                                    $name = trim($parts[0]);
+                                    $desc = trim($parts[1]);
+                                }
+                            }
+                        }
+                    }
+
+                    if ($name && $this->isValidCharacterName($name) && strlen($name) > 2) {
+                        $out[] = ['name' => $name, 'description' => $desc, 'url' => $url, 'lang' => 'en'];
+                    }
+                }
             }
         }
         
-        // If few results, fallback to generic parser
+        // If few results, fallback to generic parser (but be careful not to re-introduce cast if we filtered it out)
         if (count($out) < 3) {
-            return $this->parseGenericCharacterListPage($url, $html);
+            // Only use generic if we didn't find ANY sections, to avoid polluting
+            if (!$currentSection) {
+                return $this->parseGenericCharacterListPage($url, $html);
+            }
         }
         
         return $out;
@@ -1290,11 +1406,7 @@ class CharacterGenerator
                 strpos($line, 'personajes') !== false ||
                 strpos($line, 'protagonistas') !== false ||
                 strpos($line, 'characters') !== false ||
-                strpos($line, 'main characters') !== false ||
-                strpos($line, 'cast') !== false ||
-                strpos($line, 'reparto') !== false ||
-                strpos($line, 'papeles') !== false ||
-                strpos($line, 'roles') !== false
+                strpos($line, 'main characters') !== false
             ) {
                 $index = $s['index'];
                 break;
@@ -1354,7 +1466,7 @@ class CharacterGenerator
         $xpath = new \DOMXPath($dom);
         $headings = $xpath->query('//h2|//h3');
         $out = [];
-        $keywords = ['personajes', 'protagonistas', 'characters', 'main characters', 'cast'];
+        $keywords = ['personajes', 'protagonistas', 'characters', 'main characters'];
         foreach ($headings as $h) {
             $title = strtolower(trim($h->textContent));
             $match = false;

@@ -45,4 +45,17 @@ class Playlist
         
         return $playlist;
     }
+
+    public static function deleteByBookId($bookId)
+    {
+        $db = Database::getInstance();
+        $playlist = $db->query("SELECT id FROM playlists WHERE book_id = ?", [$bookId])->fetch();
+        
+        if ($playlist) {
+            $db->query("DELETE FROM songs WHERE playlist_id = ?", [$playlist['id']]);
+            $db->query("DELETE FROM playlists WHERE id = ?", [$playlist['id']]);
+            return true;
+        }
+        return false;
+    }
 }
