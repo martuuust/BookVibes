@@ -28,7 +28,7 @@ $router->post('/books/search', [App\Controllers\BookController::class, 'processS
 $router->get('/books/show', [App\Controllers\BookController::class, 'show']);
 $router->get('/books/add-songs', [App\Controllers\BookController::class, 'addSongs']);
 $router->post('/books/delete', [App\Controllers\BookController::class, 'delete']);
-$router->get('/books/refresh', [App\Controllers\BookController::class, 'refresh']);
+
 $router->post('/books/avatar', [App\Controllers\BookController::class, 'avatar']);
 
 // New Book Upload Routes
@@ -36,9 +36,6 @@ $router->get('/books/upload', [App\Controllers\BookController::class, 'upload'])
 $router->post('/books/storeUpload', [App\Controllers\BookController::class, 'storeUpload']);
 
 // AJAX Generation Routes
-$router->post('/books/generate-characters', [App\Controllers\BookController::class, 'apiGenerateCharacters']); // Deprecated or for backward compat
-$router->post('/books/fetch-character-list', [App\Controllers\BookController::class, 'fetchCharacterList']);
-$router->post('/books/generate-single-character', [App\Controllers\BookController::class, 'generateSingleCharacter']);
 $router->post('/books/generate-playlist', [App\Controllers\BookController::class, 'apiGeneratePlaylist']);
 $router->post('/books/regenerate-playlist', [App\Controllers\BookController::class, 'apiRegeneratePlaylist']);
 
@@ -196,32 +193,112 @@ $router->get('/pro/upgrade', function() {
             }
             
             .badge-icons img { height: 26px; margin-right: 12px; opacity: 0.8; filter: none; }
+
+            /* Navbar & Logo Styles */
+    .navbar-logo {
+        height: 100px;
+        width: auto;
+        mix-blend-mode: multiply;
+    }
+    body.dark-mode .navbar-logo {
+        filter: invert(1);
+        mix-blend-mode: screen;
+    }
+    
+    /* Back Button Style */
+    .back-nav {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 45px;
+        height: 45px;
+        padding: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.2s;
+        border: 1px solid rgba(0,0,0,0.05);
+        font-size: 1.2rem;
+    }
+    body.dark-mode .back-nav {
+        background: rgba(30, 41, 59, 0.8);
+        color: #f8fafc;
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(8px);
+    }
+    .back-nav:hover {
+        transform: translateX(-4px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        color: #1e293b;
+    }
+    body.dark-mode .back-nav:hover {
+        color: #f8fafc;
+    }
+
+    /* Navbar Theme Styles */
+    .navbar-light-mode { background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0); }
+    .navbar-dark-mode { background: linear-gradient(to right, #1a202c, #2d3748, #4a5568) !important; }
+    .navbar-brand-text { color: #1a202c; }
+    body.dark-mode .navbar-brand-text { color: #f8fafc; }
+    body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
+    .navbar-text-light { color: black !important; }
+    body.dark-mode .navbar-text-light { color: white !important; }
+    
+    /* Navbar Button Overrides */
+    body.dark-mode .btn-outline-light { background-color: #dc3545 !important; border-color: #dc3545 !important; color: white !important; }
+    body.dark-mode .btn-outline-light:hover { background-color: #c82333 !important; border-color: #bd2130 !important; color: white !important; }
+    
+    body:not(.dark-mode) .btn-outline-light {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border-color: transparent !important;
+    }
+    body:not(.dark-mode) .btn-outline-light:hover {
+        background-color: #c82333 !important;
+        color: white !important;
+    }
         </style>
     </head>
     <body>
     
     <!-- Navbar -->
-    <nav class='navbar navbar-expand-lg navbar-dark mb-5 sticky-top' style='background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.1);'>
-      <div class='container'>
-        <a class='navbar-brand fw-bold d-flex align-items-center gap-2' href='/dashboard' style='letter-spacing: -0.5px; font-size: 1.5rem;'>
-            <div class='position-relative d-flex align-items-center justify-content-center' style='width: 40px; height: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);'>
-                <i class='bi bi-book-half text-white' style='font-size: 1.2rem;'></i>
-                <i class='bi bi-music-note-beamed position-absolute' style='color: #2dd4bf; font-size: 0.8rem; top: 8px; right: 6px; transform: rotate(15deg);'></i>
-            </div>
-            <span style='background: linear-gradient(135deg, #a78bfa, #2dd4bf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 10px rgba(167, 139, 250, 0.3);'>BookVibes</span>
+    <nav id='mainNavbar' class='navbar navbar-expand-lg navbar-light mb-5 sticky-top navbar-light-mode' style='backdrop-filter: blur(10px);'>
+      <div class='container-fluid px-4 px-md-5'>
+        <a class='navbar-brand d-flex align-items-center gap-2' href='/dashboard'>
+            <img src='/logo.png' alt='BookVibes' class='navbar-logo'>
         </a>
-        <div class='d-flex text-white align-items-center gap-3'>
-            <button id='darkModeToggle' class='btn btn-link text-white p-0 border-0' title='Alternar modo oscuro'>
-                <i class='bi bi-moon-fill fs-5'></i>
+        <div class='d-flex text-white align-items-center gap-2 gap-md-4'>
+            <button id='darkModeToggle' class='btn btn-link p-0 border-0' title='Alternar modo oscuro'>
+                <i id='darkModeIcon' class='bi bi-moon-fill fs-4'></i>
             </button>
-            <div class='d-none d-md-block text-end lh-1'>
-                <span class='d-block fw-semibold' style='font-size: 0.9rem;'>Hola, ".htmlspecialchars($userName)."</span>
-                <small class='text-white-50' style='font-size: 0.75rem;'>Lector</small>
+            <div class='d-none d-md-block text-end lh-1 navbar-text-light'>
+                <span class='d-block fw-semibold' style='font-size: 1rem;'>Hola, ".htmlspecialchars($userName)."</span>
             </div>
-            <a href='/dashboard' class='btn btn-outline-light btn-sm rounded-pill px-3' style='font-size: 0.8rem;'>Volver</a>
+            ".($isPro ? "
+                <a href='/pro/settings' class='text-decoration-none'>
+                    <span class='badge bg-gradient border border-light border-opacity-25' style='background-color: #8b5cf6; font-size: 0.9rem; cursor: pointer;'>Pro</span>
+                </a>
+            " : "
+                <span class='badge bg-secondary bg-opacity-50 border border-secondary border-opacity-25' style='font-size: 0.9rem;'>Básica</span>
+            ")."
+            <a href='/logout' class='btn btn-outline-light btn-sm rounded-pill px-2 px-md-3 py-1' style='font-size: 0.9rem;'>
+                <span class='d-none d-md-inline'>Cerrar Sesión</span>
+                <i class='bi bi-box-arrow-right d-md-none'></i>
+            </a>
         </div>
       </div>
     </nav>
+    
+    <!-- Back Button -->
+    <a href='/dashboard' class='back-nav' aria-label='Volver'>
+        <i class='bi bi-arrow-left'></i>
+    </a>
 
     <div class='container pb-5'>
       <div class='row g-4 justify-content-center'>
@@ -354,21 +431,45 @@ $router->get('/pro/upgrade', function() {
     // Dark Mode Toggle
     const toggleBtn = document.getElementById('darkModeToggle');
     const body = document.body;
-    const icon = toggleBtn.querySelector('i');
+    const icon = document.getElementById('darkModeIcon');
+    const mainNavbar = document.getElementById('mainNavbar');
+
+    // Function to apply theme
+    function applyTheme(isDark) {
+        if (isDark) {
+            body.classList.add('dark-mode');
+            if (icon) {
+                icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+            }
+            if (mainNavbar) {
+                mainNavbar.classList.replace('navbar-light-mode', 'navbar-dark-mode');
+                mainNavbar.classList.replace('navbar-light', 'navbar-dark');
+            }
+        } else {
+            body.classList.remove('dark-mode');
+            if (icon) {
+                icon.classList.replace('bi-sun-fill', 'bi-moon-fill');
+            }
+            if (mainNavbar) {
+                mainNavbar.classList.replace('navbar-dark-mode', 'navbar-light-mode');
+                mainNavbar.classList.replace('navbar-dark', 'navbar-light');
+            }
+        }
+    }
 
     // Check local storage
     if (localStorage.getItem('theme') === 'dark') {
-        body.classList.add('dark-mode');
-        icon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+        applyTheme(true);
+    } else {
+        applyTheme(false);
     }
 
     toggleBtn.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        const isDark = body.classList.contains('dark-mode');
+        const isDark = !body.classList.contains('dark-mode');
+        applyTheme(isDark);
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        icon.classList.replace(isDark ? 'bi-moon-fill' : 'bi-sun-fill', isDark ? 'bi-sun-fill' : 'bi-moon-fill');
     });
-</script>
+    </script>
 </body></html>";
 });
 $router->get('/pro/activate', function() {

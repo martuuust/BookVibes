@@ -7,11 +7,11 @@ use App\Core\Request;
 use App\Core\Database;
 use App\Services\ScraperService;
 use App\Services\MoodAnalyzer;
-use App\Services\CharacterGenerator;
 use App\Services\YouTubeSearchService;
+
 use App\Services\AISongGeneratorService;
 use App\Models\Book;
-use App\Models\Character;
+
 use App\Models\Playlist;
 
 class BookController extends Controller
@@ -85,8 +85,7 @@ class BookController extends Controller
         // 3. Save Basic Info to DB
         $bookId = Book::create($bookData);
         
-        // Note: Character generation and Playlist generation are now DEFERRED.
-        // They will be triggered via AJAX on the show page.
+
         
         // Add to User's list (UserBook relation)
         $added = \App\Models\UserBook::add($userId, $bookId);
@@ -100,145 +99,9 @@ class BookController extends Controller
         header("Location: /books/show?id=$bookId");
     }
 
-    public function apiGenerateCharacters(Request $request)
-    {
-        // ... (Keep existing logic if needed for backward compatibility or bulk generation)
-        // For now we'll just keep it but maybe it won't be called by frontend
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        $body = $request->getBody();
-        $bookId = $body['book_id'] ?? null;
-        
-        if (!$bookId) {
-            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
-        }
-        
-        $book = Book::find($bookId);
-        if (!$book) {
-            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
-        }
-        
-        // Check if characters already exist
-        $existing = Character::getByBookId($bookId);
-        if (!empty($existing)) {
-             return $this->json(['ok' => true, 'status' => 'already_exists', 'characters' => $existing]);
-        }
-        
-        try {
-            $charGen = new CharacterGenerator();
-            $bookData = [
-                'title' => $book['title'],
-                'author' => $book['author'],
-                'synopsis' => $book['synopsis'],
-                'mood' => $book['mood'] ?? '',
-                'genre' => $book['genre'] ?? ''
-            ];
-            
-            $characters = $charGen->generateCharacters($bookData);
-            
-            // Save to DB
-            Character::deleteByBookId($bookId);
-            $seen = [];
-            foreach ($characters as $char) {
-                $name = trim($char['name'] ?? '');
-                if ($name === '' || $name === 'Personaje principal') continue;
-                $key = mb_strtolower($name);
-                if (isset($seen[$key])) continue;
-                $seen[$key] = true;
-                Character::create($bookId, $char);
-            }
-            
-            return $this->json(['ok' => true, 'characters' => $characters]);
-        } catch (\Exception $e) {
-            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
 
-    public function fetchCharacterList(Request $request)
-    {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        // Allow all users to fetch list, but UI will handle blurring for non-Pro
-        
-        $body = $request->getBody();
-        $bookId = $body['book_id'] ?? null;
-        if (!$bookId) return $this->json(['ok' => false, 'error' => 'No book ID'], 400);
 
-        $book = Book::find($bookId);
-        if (!$book) return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
 
-        try {
-            $charGen = new CharacterGenerator();
-            $list = $charGen->getCharacterList([
-                'title' => $book['title'],
-                'author' => $book['author']
-            ]);
-            
-            // Filter out characters that already exist in DB for this book
-            $existing = Character::getByBookId($bookId);
-            $existingNames = [];
-            foreach($existing as $e) $existingNames[mb_strtolower(trim($e['name']))] = true;
-            
-            $filteredList = [];
-            $alreadyAddedCount = 0;
-            foreach ($list as $c) {
-                if (!isset($existingNames[mb_strtolower(trim($c['name']))])) {
-                    $filteredList[] = $c;
-                } else {
-                    $alreadyAddedCount++;
-                }
-            }
-            
-            return $this->json([
-                'ok' => true, 
-                'list' => $filteredList,
-                'total_found' => count($list),
-                'already_added_count' => $alreadyAddedCount
-            ]);
-        } catch (\Exception $e) {
-            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function generateSingleCharacter(Request $request)
-    {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        // Allow all users to generate, but UI will blur for non-Pro
-        
-        $body = $request->getBody();
-        $bookId = $body['book_id'] ?? null;
-        $charData = $body['character'] ?? null; // Should contain name, description
-        
-        if (!$bookId || !$charData || empty($charData['name'])) {
-            return $this->json(['ok' => false, 'error' => 'Invalid parameters'], 400);
-        }
-
-        $book = Book::find($bookId);
-        if (!$book) return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
-        
-        // Check if exists
-        $existing = Character::getByBookId($bookId);
-        foreach($existing as $e) {
-            if (mb_strtolower(trim($e['name'])) === mb_strtolower(trim($charData['name']))) {
-                 return $this->json(['ok' => false, 'error' => 'Character already exists'], 400);
-            }
-        }
-
-        try {
-            $charGen = new CharacterGenerator();
-            
-            $context = [
-                'mood' => $book['mood'] ?? '',
-                'genre' => $book['genre'] ?? ''
-            ];
-            
-            $result = $charGen->generateSingleCharacter($book['title'], $charData, $context);
-            
-            Character::create($bookId, $result);
-            
-            return $this->json(['ok' => true, 'character' => $result]);
-        } catch (\Exception $e) {
-            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
     
     public function apiGeneratePlaylist(Request $request)
     {
@@ -257,7 +120,7 @@ class BookController extends Controller
         
         $userId = $_SESSION['user_id'] ?? 0;
         $accountType = $_SESSION['account_type'] ?? 'Basic';
-        $playlistLimit = ($accountType === 'Pro') ? 10 : 7;
+        $playlistLimit = 7;
         
         $playlist = Playlist::getByBookId($bookId);
         
@@ -403,6 +266,32 @@ class BookController extends Controller
         if (!$bookId) {
             return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
         }
+
+        $userId = $_SESSION['user_id'] ?? 0;
+        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+
+        // Check Regeneration Limit
+        $db = \App\Core\Database::getInstance();
+        
+        // Ensure column exists (Migration check)
+        try {
+             $col = $db->query("SHOW COLUMNS FROM user_books LIKE 'regen_count'")->fetch();
+             if (!$col) {
+                 $db->query("ALTER TABLE user_books ADD COLUMN regen_count INT DEFAULT 0");
+             }
+        } catch (\Exception $e) {}
+
+        // Get current count
+        $ub = $db->query("SELECT regen_count FROM user_books WHERE user_id = ? AND book_id = ?", [$userId, $bookId])->fetch();
+        $currentCount = $ub['regen_count'] ?? 0;
+
+        // Enforce Limit for Basic Users
+        if (!$isPro && $currentCount >= 1) {
+             return $this->json(['ok' => false, 'require_upgrade' => true, 'error' => 'Has alcanzado el límite de regeneración. Pásate a Pro para regenerar ilimitadamente.']);
+        }
+
+        // Increment Count
+        $db->query("UPDATE user_books SET regen_count = regen_count + 1 WHERE user_id = ? AND book_id = ?", [$userId, $bookId]);
 
         // Delete existing playlist
         Playlist::deleteByBookId($bookId);
@@ -559,7 +448,8 @@ class BookController extends Controller
 
         if (session_status() === PHP_SESSION_NONE) session_start();
         $book = Book::find($id);
-        $characters = Character::getByBookId($id);
+        
+
         $playlist = Playlist::getByBookId($id);
         $spotifyConfigured = (trim(getenv('SPOTIFY_CLIENT_ID') ?: '') !== '') && (trim(getenv('SPOTIFY_REDIRECT_URI') ?: '') !== '');
         
@@ -568,7 +458,6 @@ class BookController extends Controller
 
         return $this->render('books/show', [
             'book' => $book,
-            'characters' => $characters,
             'playlist' => $playlist,
             'spotify_configured' => $spotifyConfigured,
             'pro_enabled' => !empty($_SESSION['pro']) && $_SESSION['pro']
@@ -624,39 +513,7 @@ class BookController extends Controller
         return $this->json(['ok' => true, 'icon_class' => $icon]);
     }
 
-    public function refresh(Request $request)
-    {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: /login');
-            exit;
-        }
-        $books = Book::all();
-        $charGen = new CharacterGenerator();
-        foreach ($books as $b) {
-            $data = [
-                'title' => $b['title'],
-                'author' => $b['author'],
-                'synopsis' => $b['synopsis'] ?? '',
-                'genre' => $b['genre'] ?? '',
-                'mood' => $b['mood'] ?? '',
-                'image_url' => $b['cover_url'] ?? ''
-            ];
-            $chars = $charGen->generateCharacters($data);
-            Character::deleteByBookId($b['id']);
-            $seen = [];
-            foreach ($chars as $c) {
-                $name = trim($c['name'] ?? '');
-                if ($name === '' || $name === 'Personaje principal') continue;
-                $key = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
-                if (isset($seen[$key])) continue;
-                $seen[$key] = true;
-                Character::create($b['id'], $c);
-            }
-        }
-        header('Location: /dashboard');
-        exit;
-    }
+
 
     public function spotifyConnect(Request $request)
     {
@@ -917,4 +774,6 @@ class BookController extends Controller
         header("Location: /books/show?id=$id");
         exit;
     }
+
+
 }

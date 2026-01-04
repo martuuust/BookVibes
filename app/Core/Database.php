@@ -23,9 +23,23 @@ class Database
         $dsn = "mysql:host={$config['host']};port={$config['port']};dbname={$config['dbname']};charset=utf8mb4";
 
         // Connect
-        // We do NOT try-catch here so that the Installer can catch "Unknown Database" errors
-        // and create the DB automatically.
-        $this->pdo = new PDO($dsn, $config['user'], $config['password']);
+        try {
+            $this->pdo = new PDO($dsn, $config['user'], $config['password']);
+        } catch (PDOException $e) {
+            // If database does not exist, try to create it
+            if ($e->getCode() === 1049 || strpos($e->getMessage(), 'Unknown database') !== false) {
+                $dsnNoDb = "mysql:host={$config['host']};port={$config['port']};charset=utf8mb4";
+                $tempPdo = new PDO($dsnNoDb, $config['user'], $config['password']);
+                $tempPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                $tempPdo->exec("CREATE DATABASE IF NOT EXISTS `{$config['dbname']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                
+                // Retry connection
+                $this->pdo = new PDO($dsn, $config['user'], $config['password']);
+            } else {
+                throw $e;
+            }
+        }
+
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     }

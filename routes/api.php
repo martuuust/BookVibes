@@ -13,4 +13,4 @@ $router->get('/api/status', function() {
 $router->get('/api/books', [App\Controllers\ApiController::class, 'getBooks']);
 $router->get('/api/books/detail', [App\Controllers\ApiController::class, 'getBookDetails']); // Uses ?id=
 $router->get('/api/playlists', [App\Controllers\ApiController::class, 'getPlaylist']); // Uses ?id= (book_id)
-$router->get('/api/characters', [App\Controllers\ApiController::class, 'getCharacters']); // Uses ?id= (book_id)
+

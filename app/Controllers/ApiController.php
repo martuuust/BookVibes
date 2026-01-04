@@ -6,7 +6,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Models\Book;
 use App\Models\Playlist;
-use App\Models\Character;
+
 
 class ApiController extends Controller
 {
@@ -48,11 +48,5 @@ class ApiController extends Controller
         $this->json(['data' => $playlist]);
     }
 
-    public function getCharacters(Request $request)
-    {
-        $id = $request->getBody()['id'] ?? null;
-        $characters = Character::getByBookId($id);
-        
-        $this->json(['data' => $characters]);
-    }
+
 }

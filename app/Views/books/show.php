@@ -258,8 +258,99 @@
         body.dark-mode .back-nav:hover {
             color: #f8fafc;
         }
-        .character-card { transition: transform 0.2s; background: var(--char-bg); border: 1px solid rgba(0,0,0,0.05); }
-        .character-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+        .character-card { 
+            position: relative;
+            min-height: 320px;
+            background-color: var(--card-bg);
+            background-size: cover;
+            background-position: center;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .character-card:hover { 
+            transform: translateY(-8px); 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2) !important; 
+        }
+        .character-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+            color: var(--text-muted);
+            background: linear-gradient(135deg, rgba(100,100,100,0.05), rgba(150,150,150,0.05));
+            opacity: 0.3;
+        }
+        .character-info-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem 1rem 1rem;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 60%, transparent 100%);
+            color: white;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .generate-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            opacity: 0;
+            transition: all 0.3s ease;
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+        .character-card:hover .generate-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .generate-btn:hover {
+            background: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .blur-content {
+            filter: blur(6px);
+            user-select: none;
+            opacity: 0.7;
+        }
+        .locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(100, 100, 100, 0.1);
+            backdrop-filter: blur(2px);
+            z-index: 10;
+        }
+        .locked-badge {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+        }
 
         /* --- New Styles for Playlist (Glassmorphism) --- */
         .glass-card {
@@ -268,7 +359,7 @@
             border-radius: 16px;
             backdrop-filter: blur(10px);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
+            /* overflow: hidden; Removed to allow popover to show */
             color: var(--text-main);
             transition: all 0.3s ease;
         }
@@ -276,6 +367,8 @@
             padding: 1.25rem;
             border-bottom: 1px solid var(--card-border);
             background: rgba(255, 255, 255, 0.02);
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
         }
         .visual-album-container {
             cursor: pointer;
@@ -655,7 +748,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                         <div id="full-playlist">
                             <div class="list-group list-group-flush">
                                 <?php 
-                                    $limit = $isPro ? PHP_INT_MAX : 7;
+                                    $limit = 7;
                                     $i = 0;
                                     $aiCount = 0;
                                     foreach($playlist['songs'] as $song): 
@@ -726,14 +819,6 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                             
                             <!-- Pro/Upgrade Actions -->
                             <div class="p-3 bg-dark bg-opacity-25 border-top border-secondary border-opacity-10">
-                                <?php if($isPro): ?>
-                                    <div class="d-grid gap-2">
-                                        <a href="/books/add-songs?id=<?= urlencode($book['id']) ?>" class="btn btn-outline-light btn-sm">
-                                            <i class="bi bi-plus-circle me-2"></i>Añadir 10 canciones más
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
-
                                 <?php if(!$isPro && count($playlist['songs']) > 7): ?>
                                     <div class="text-center py-2">
                                         <small class="text-muted d-block mb-2">Mostrando 7 de <?= count($playlist['songs']) ?> canciones</small>
@@ -743,7 +828,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                     </div>
                                 <?php elseif(!$isPro): ?>
                                     <div class="d-grid mt-2">
-                                         <a href="/pro/upgrade?book_id=<?= urlencode($book['id']) ?>&return=<?= urlencode('/books/show?id=' . $book['id']) ?>" class="btn btn-outline-light btn-sm">
+                                        <a href="/pro/upgrade?book_id=<?= urlencode($book['id']) ?>&return=<?= urlencode('/books/show?id=' . $book['id']) ?>" class="btn btn-outline-light btn-sm">
                                             <i class="bi bi-stars me-1"></i> Mejorar Recomendaciones
                                         </a>
                                     </div>
@@ -755,10 +840,23 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                             <i class="bi bi-spotify me-2"></i>Guardar en Spotify
                                         </a>
                                     </div>
-                                    <div class="d-grid mt-2">
-                                        <button onclick="regeneratePlaylist()" class="btn btn-outline-warning btn-sm">
+                                    <div class="d-grid mt-2 position-relative">
+                                        <button onclick="toggleRegenerateConfirm()" class="btn btn-outline-warning btn-sm">
                                             <i class="bi bi-arrow-repeat me-2"></i>Regenerar Playlist
                                         </button>
+                                        <!-- Custom Popover -->
+                                        <div id="regenerate-confirm-popover" class="position-absolute bg-white shadow-lg rounded p-3 d-none fade-in-up" style="bottom: 110%; left: 50%; transform: translateX(-50%); width: 220px; z-index: 1050;">
+                                            <div class="text-dark text-center">
+                                                <h6 class="fw-bold mb-1">¿Regenerar?</h6>
+                                                <p class="small mb-2" style="font-size: 0.8rem; line-height: 1.2;">Se perderán las canciones actuales.</p>
+                                                <div class="d-flex justify-content-center gap-2">
+                                                    <button onclick="toggleRegenerateConfirm()" class="btn btn-xs btn-outline-secondary py-1 px-2" style="font-size: 0.75rem;">Cancelar</button>
+                                                    <button onclick="executeRegeneratePlaylist()" class="btn btn-xs btn-danger py-1 px-2" style="font-size: 0.75rem;">Sí, Regenerar</button>
+                                                </div>
+                                            </div>
+                                            <!-- Arrow -->
+                                            <div class="position-absolute bg-white" style="bottom: -5px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px;"></div>
+                                        </div>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -783,137 +881,10 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 </div>
             </div>
 
-            <!-- Generation UI (Pro Only) -->
-            <?php if($isPro): ?>
-                <div id="char-gen-ui" class="mb-4 d-none">
-                    <div class="card border-0 bg-dark bg-opacity-10 p-4 rounded-4" style="backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0 fw-bold"><i class="bi bi-magic me-2 text-primary"></i>Generar Nuevo Personaje</h5>
-                            <button onclick="hideCharGen()" class="btn btn-sm btn-link text-muted p-0"><i class="bi bi-x-lg"></i></button>
-                        </div>
-                        
-                        <!-- Step 1: Loading List -->
-                        <div id="char-list-loader" class="text-center py-4">
-                            <div class="spinner-border text-primary mb-3" role="status"></div>
-                            <h6 class="fw-normal">Consultando fuentes oficiales...</h6>
-                            <p class="small text-muted mb-0">Buscando personajes en Wikipedia, Fandom y Goodreads</p>
-                        </div>
+            <!-- Generation UI Removed -->
+            
 
-                        <!-- Step 2: Selection -->
-                        <div id="char-selection-area" class="d-none">
-                            <style>
-                                .char-selection-card {
-                                    cursor: pointer;
-                                    transition: all 0.3s ease;
-                                    border: 2px solid transparent;
-                                    background: rgba(255, 255, 255, 0.05);
-                                }
-                                .char-selection-card:hover {
-                                    transform: translateY(-5px);
-                                    background: rgba(255, 255, 255, 0.1);
-                                }
-                                .char-selection-card.selected {
-                                    border-color: var(--primary-color, #6366f1);
-                                    background: rgba(99, 102, 241, 0.1);
-                                    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
-                                }
-                                .char-placeholder-icon {
-                                    width: 60px;
-                                    height: 60px;
-                                    border-radius: 50%;
-                                    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-size: 1.5rem;
-                                    color: white;
-                                    margin: 0 auto 10px;
-                                }
-                            </style>
-                            <div class="mb-3" id="char-select-container">
-                                <label class="form-label small text-muted text-uppercase fw-bold mb-3">Selecciona un Personaje</label>
-                                <div id="char-grid" class="row g-3" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
-                                    <!-- Grid items injected by JS -->
-                                </div>
-                            </div>
-                            
-                            <div id="char-manual-container" class="mb-3 d-none">
-                                <label class="form-label small text-muted text-uppercase fw-bold">Nombre del Personaje</label>
-                                <input type="text" id="char-manual-input" class="form-control form-control-lg" placeholder="Ej: Harry Potter" oninput="updateManualPreview()">
-                                <div class="form-text text-white-50 small"><i class="bi bi-info-circle me-1"></i>No encontramos una lista oficial. Escribe el nombre manualmente.</div>
-                            </div>
-                            
-                            <div id="char-desc-preview" class="p-3 rounded-3 bg-white bg-opacity-10 mb-3 d-none">
-                                <small class="d-block text-muted mb-1">Descripción detectada:</small>
-                                <p class="mb-0 fst-italic small" id="char-desc-text"></p>
-                            </div>
 
-                            <div class="d-grid">
-                                <button id="btn-create-char" class="btn btn-primary btn-lg" onclick="generateSelectedChar()" disabled>
-                                    <i class="bi bi-stars me-2"></i>Generar con IA
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Step 3: Generating -->
-                        <div id="char-generating-loader" class="d-none text-center py-4">
-                            <div class="spinner-border text-purple mb-3" role="status" style="color: #a855f7;"></div>
-                            <h6 class="fw-normal">Imaginando personaje...</h6>
-                            <p class="small text-muted mb-0">Analizando rasgos y generando retrato fiel</p>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <div class="position-relative">
-                
-                <!-- Empty State Trigger (Pro Only, No Characters) -->
-                <?php if(empty($characters)): ?>
-                    <div id="char-empty-state" class="text-center py-5">
-                        <div class="mb-4">
-                            <div style="width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                                <i class="bi bi-person-badge text-primary display-4"></i>
-                            </div>
-                        </div>
-                        <h4 class="fw-bold mb-3" style="color: var(--text-body);">Personajes de la Historia</h4>
-                        <p class="text-muted mb-4">Generando personajes automáticamente...</p>
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <div id="characters-section" class="<?= empty($characters) ? 'd-none' : '' ?>">
-                    <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-2">
-                        <h3 class="mb-0 fw-bold">Personajes</h3>
-                    </div>
-
-                    <div class="row <?= !$isPro ? 'blur-content' : '' ?>" id="characters-list">
-                        <?php foreach($characters as $char): ?>
-                        <div class="col-6 col-md-4 col-lg-3 mb-4">
-                            <div class="premium-char-card">
-                                <div class="premium-char-img-wrapper">
-                                    <img src="<?= htmlspecialchars($char['image_url']) ?>" class="premium-char-img" alt="<?= htmlspecialchars($char['name']) ?>">
-                                    <div class="premium-char-overlay">
-                                        <div class="premium-char-name"><?= htmlspecialchars($char['name']) ?></div>
-                                        <?php 
-                                            $traits = is_string($char['traits']) ? json_decode($char['traits'], true) : $char['traits'];
-                                            if(!empty($traits) && is_array($traits)): 
-                                        ?>
-                                        <div class="premium-char-traits">
-                                            <?php foreach(array_slice($traits, 0, 3) as $t): ?>
-                                                <span class="premium-trait-pill"><?= htmlspecialchars($t) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -921,18 +892,17 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const IS_PRO = <?= json_encode($isPro) ?>;
-
-    // Global variables for Character Generation
-    let fetchedCharacters = [];
-    let characterListPromise = null;
-    let selectedCharIndex = null;
     const BOOK_ID = <?= json_encode($book['id']) ?>;
 
-    // Start background loading immediately when page loads
     document.addEventListener('DOMContentLoaded', () => {
-        startBackgroundCharacterLoad();
         checkPlaylistLoad();
     });
+
+
+
+
+
+    // Start background loading immediately when page loads
 
     function checkPlaylistLoad() {
         const loader = document.getElementById('playlist-loader');
@@ -962,342 +932,22 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         });
     }
 
-    // Expose for regenerate button
-    window.regeneratePlaylist = function() {
-        if (!confirm('¿Regenerar playlist? Se perderán las canciones actuales.')) return;
-        
+    function toggleRegenerateConfirm() {
+        const popover = document.getElementById('regenerate-confirm-popover');
+        if (popover) {
+            popover.classList.toggle('d-none');
+        }
+    }
+
+    function executeRegeneratePlaylist() {
+        // Hide popover immediately
+        toggleRegenerateConfirm();
+
         const container = document.querySelector('.glass-card'); // Parent container
         if(container) {
-             container.innerHTML = '<div id="playlist-loader" class="p-5 text-center"><div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div><h6 class="text-white">Regenerando...</h6></div>';
+            container.innerHTML = '<div id="playlist-loader" class="p-5 text-center"><div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div><h6 class="text-white">Regenerando...</h6></div>';
         }
 
-        fetch('/books/api-regenerate-playlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_id: BOOK_ID })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                window.location.reload();
-            } else {
-                alert('Error: ' + (data.error || 'Desconocido'));
-                window.location.reload();
-            }
-        })
-        .catch(e => {
-            alert('Error de red');
-            window.location.reload();
-        });
-    }
-
-    function startBackgroundCharacterLoad() {
-        if (characterListPromise) return; // Already started
-
-        // console.log('Starting background character fetch...');
-        characterListPromise = fetch('/books/fetch-character-list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_id: BOOK_ID })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                fetchedCharacters = data.list.filter(c => c.name && c.name.trim().length > 0);
-                
-                // Automatically start generating characters
-                if (fetchedCharacters.length > 0) {
-                    processCharacterQueue(fetchedCharacters);
-                } else if (data.already_added_count > 0) {
-                    // Back Button Stale Cache Fix:
-                    // If backend says chars exist, but frontend list is empty (because cache served initial empty state),
-                    // we must reload to get the server-rendered characters.
-                    const grid = document.getElementById('characters-list');
-                    if (grid && grid.children.length === 0) {
-                        console.log('Stale cache detected (chars exist in DB but not in DOM). Reloading...');
-                        window.location.reload();
-                    }
-                }
-                
-                return { success: true, data: data };
-            } else {
-                console.warn('Background fetch error:', data.error);
-                return { success: false, error: data.error };
-            }
-        })
-        .catch(err => {
-            console.error('Background fetch network error:', err);
-            return { success: false, error: err };
-        });
-    }
-    
-    // Process queue sequentially to avoid overwhelming server/API
-    async function processCharacterQueue(chars) {
-        for (const char of chars) {
-            try {
-                // Check if already in grid (redundant but safe)
-                // Note: The backend already filtered existing ones, but we check JS state if needed.
-                
-                // Call generate
-                const response = await fetch('/books/generate-single-character', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        book_id: BOOK_ID,
-                        character: char
-                    })
-                });
-                
-                const res = await response.json();
-                if (res.ok && res.character) {
-                    addCharacterToGrid(res.character);
-                }
-            } catch (e) {
-                console.error("Error generating char:", char.name, e);
-            }
-            // Small delay between requests
-            await new Promise(r => setTimeout(r, 1000)); 
-        }
-        
-        // If we processed everything and grid is still empty (errors?), handle empty state
-        const emptyState = document.getElementById('char-empty-state');
-        if (emptyState && document.getElementById('characters-list').children.length === 0) {
-            emptyState.innerHTML = '<p class="text-muted">No se pudieron generar personajes.</p>';
-        } else if (emptyState) {
-             emptyState.remove();
-        }
-    }
-
-    function showCharGen() {
-        const ui = document.getElementById('char-gen-ui');
-        ui.classList.remove('d-none');
-        
-        // Reset state
-        document.getElementById('char-list-loader').classList.remove('d-none');
-        document.getElementById('char-selection-area').classList.add('d-none');
-        document.getElementById('char-generating-loader').classList.add('d-none');
-        document.getElementById('char-grid').innerHTML = '';
-        document.getElementById('btn-create-char').disabled = true;
-        document.getElementById('char-desc-preview').classList.add('d-none');
-        selectedCharIndex = null;
-        
-        const existingMsg = document.getElementById('char-manual-msg');
-        if (existingMsg) existingMsg.remove();
-        
-        // Reset manual input
-        document.getElementById('char-manual-input').value = '';
-        document.getElementById('char-select-container').classList.remove('d-none');
-        document.getElementById('char-manual-container').classList.add('d-none');
-
-        // Ensure fetch is started
-        if (!characterListPromise) {
-            startBackgroundCharacterLoad();
-        }
-
-        // Use the promise to update UI when ready
-        characterListPromise.then(result => {
-            if (result.success) {
-                const data = result.data;
-                const grid = document.getElementById('char-grid');
-                
-                document.getElementById('char-list-loader').classList.add('d-none');
-                document.getElementById('char-selection-area').classList.remove('d-none');
-
-                if (fetchedCharacters.length === 0) {
-                    // Switch to Manual Mode
-                    document.getElementById('char-select-container').classList.add('d-none');
-                    document.getElementById('char-manual-container').classList.remove('d-none');
-                    
-                    if (data.total_found > 0 && data.already_added_count > 0) {
-                         const msg = document.createElement('div');
-                         msg.id = 'char-manual-msg';
-                         msg.className = 'alert alert-info small mt-2';
-                         msg.innerHTML = '<i class="bi bi-info-circle me-1"></i>Todos los personajes encontrados ya han sido generados.';
-                         document.getElementById('char-manual-container').prepend(msg);
-                    }
-                } else {
-                    // Populate Grid
-                    grid.innerHTML = ''; 
-                    
-                    fetchedCharacters.forEach((char, index) => {
-                        const col = document.createElement('div');
-                        col.className = 'col-6 col-md-4 col-lg-3';
-                        col.innerHTML = `
-                            <div class="card h-100 char-selection-card text-center p-3" onclick="selectCharacter(${index}, this)">
-                                <div class="char-placeholder-icon">
-                                    <i class="bi bi-person-fill"></i>
-                                </div>
-                                <h6 class="mb-1 fw-bold text-truncate" title="${char.name}">${char.name}</h6>
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                    ${char.source_count > 1 ? char.source_count + ' fuentes' : 'Fuente fiable'}
-                                </small>
-                            </div>
-                        `;
-                        grid.appendChild(col);
-                    });
-                }
-            } else {
-                // Error fallback -> Manual Mode
-                console.warn('API Error or Network Error');
-                document.getElementById('char-list-loader').classList.add('d-none');
-                document.getElementById('char-selection-area').classList.remove('d-none');
-                document.getElementById('char-select-container').classList.add('d-none');
-                document.getElementById('char-manual-container').classList.remove('d-none');
-            }
-        });
-    }
-
-    function hideCharGen() {
-        document.getElementById('char-gen-ui').classList.add('d-none');
-    }
-
-    function selectCharacter(index, cardElement) {
-        selectedCharIndex = index;
-        document.querySelectorAll('.char-selection-card').forEach(c => c.classList.remove('selected'));
-        cardElement.classList.add('selected');
-        updateCharPreview();
-    }
-
-    function updateCharPreview() {
-        const previewBox = document.getElementById('char-desc-preview');
-        const descText = document.getElementById('char-desc-text');
-        const btn = document.getElementById('btn-create-char');
-
-        if (selectedCharIndex === null || !fetchedCharacters[selectedCharIndex]) {
-            previewBox.classList.add('d-none');
-            btn.disabled = true;
-            return;
-        }
-
-        const char = fetchedCharacters[selectedCharIndex];
-        if (char.description) {
-            descText.textContent = char.description.substring(0, 150) + (char.description.length > 150 ? '...' : '');
-            previewBox.classList.remove('d-none');
-        } else {
-            previewBox.classList.add('d-none');
-        }
-        btn.disabled = false;
-    }
-
-    function updateManualPreview() {
-        const val = document.getElementById('char-manual-input').value.trim();
-        const btn = document.getElementById('btn-create-char');
-        btn.disabled = (val.length < 2);
-    }
-
-    function generateSelectedChar() {
-        const isManual = !document.getElementById('char-manual-container').classList.contains('d-none');
-        let charData = null;
-
-        if (isManual) {
-            const name = document.getElementById('char-manual-input').value.trim();
-            if (name.length < 2) return;
-            charData = { name: name, description: '' };
-        } else {
-            if (selectedCharIndex === null || !fetchedCharacters[selectedCharIndex]) return;
-            charData = fetchedCharacters[selectedCharIndex];
-        }
-        
-        document.getElementById('char-selection-area').classList.add('d-none');
-        document.getElementById('char-generating-loader').classList.remove('d-none');
-
-        fetch('/books/generate-single-character', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                book_id: BOOK_ID,
-                character: charData
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                addCharacterToGrid(data.character);
-                // Reset UI to allow another generation
-                document.getElementById('char-generating-loader').classList.add('d-none');
-                document.getElementById('char-selection-area').classList.remove('d-none');
-                
-                if (!isManual) {
-                    // Remove generated char from grid
-                    const selectedCard = document.querySelector('.char-selection-card.selected');
-                    if (selectedCard && selectedCard.parentElement) {
-                        selectedCard.parentElement.remove();
-                    }
-                    
-                    selectedCharIndex = null;
-                    updateCharPreview();
-                    
-                    // If grid empty
-                    const grid = document.getElementById('char-grid');
-                    if (grid.children.length === 0) {
-                        document.getElementById('char-select-container').classList.add('d-none');
-                        document.getElementById('char-manual-container').classList.remove('d-none');
-                    }
-                } else {
-                    document.getElementById('char-manual-input').value = '';
-                    updateManualPreview();
-                }
-            } else {
-                alert('Error generando personaje: ' + (data.error || 'Inténtalo de nuevo'));
-                document.getElementById('char-generating-loader').classList.add('d-none');
-                document.getElementById('char-selection-area').classList.remove('d-none');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Error de conexión');
-            document.getElementById('char-generating-loader').classList.add('d-none');
-            document.getElementById('char-selection-area').classList.remove('d-none');
-        });
-    }
-
-    function addCharacterToGrid(char) {
-        const list = document.getElementById('characters-list');
-        const noMsg = document.getElementById('no-chars-msg');
-        if (noMsg) noMsg.remove();
-        
-        // Remove empty state if present
-        const emptyState = document.getElementById('char-empty-state');
-        if (emptyState) {
-            emptyState.classList.add('d-none');
-            document.getElementById('characters-section').classList.remove('d-none');
-        }
-
-        const col = document.createElement('div');
-        col.className = 'col-6 col-md-4 col-lg-3 mb-4 fade-in-up'; 
-        
-        // Traits processing
-        let traitsHtml = '';
-        if (char.traits && Array.isArray(char.traits)) {
-            traitsHtml = '<div class="premium-char-traits">';
-            char.traits.slice(0, 3).forEach(t => {
-                traitsHtml += `<span class="premium-trait-pill">${t}</span>`;
-            });
-            traitsHtml += '</div>';
-        }
-
-        col.innerHTML = `
-            <div class="premium-char-card">
-                <div class="premium-char-img-wrapper">
-                    <img src="${char.image_url}" class="premium-char-img" alt="${char.name}">
-                    <div class="premium-char-overlay">
-                        <div class="premium-char-name">${char.name}</div>
-                        ${traitsHtml}
-                    </div>
-                </div>
-            </div>
-        `;
-        list.prepend(col);
-    }
-
-    function regeneratePlaylist() {
-        if(!confirm('¿Estás seguro de que quieres regenerar la playlist? Se perderán las canciones actuales y se generarán nuevas.')) return;
-        
-        const btn = event.currentTarget;
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Regenerando...';
-        
         fetch('/books/regenerate-playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1307,17 +957,18 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         .then(data => {
             if(data.ok) {
                 window.location.reload();
+            } else if (data.require_upgrade) {
+                // Redirect to upgrade page with return URL
+                window.location.href = '/pro/upgrade?book_id=' + BOOK_ID + '&return=' + encodeURIComponent(window.location.pathname + window.location.search);
             } else {
                 alert('Error: ' + (data.error || 'Unknown error'));
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                window.location.reload();
             }
         })
         .catch(e => {
             console.error(e);
             alert('Error de conexión');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            window.location.reload();
         });
     }
 
@@ -1992,56 +1643,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Character Generation
-    const charLoader = document.getElementById('characters-loader');
-    if (charLoader) {
-        fetch('/books/generate-characters', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_id: bookId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.ok && data.characters && data.characters.length > 0) {
-                charLoader.remove();
-                const container = document.getElementById('characters-list');
-                
-                data.characters.forEach(char => {
-                    let traits = [];
-                    try {
-                        traits = (typeof char.traits === 'string') ? JSON.parse(char.traits) : char.traits;
-                    } catch(e) {}
-                    if (!Array.isArray(traits)) traits = [];
-                    const traitsHtml = traits.slice(0, 3).map(t => `<span class="badge bg-secondary bg-opacity-10 text-dark border border-secondary border-opacity-10 me-1 mb-1" style="font-weight: 500;">${t}</span>`).join('');
-                    
-                    const html = `
-                    <div class="col-6 col-md-4 col-lg-3 mb-4">
-                        <div class="card character-card h-100 border-0 shadow-sm overflow-hidden transition-hover">
-                            <div class="character-img-wrapper position-relative" style="padding-top: 100%;">
-                                <img src="${char.image_url}" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: cover; transition: transform 0.5s ease;" alt="${char.name}">
-                                <div class="position-absolute bottom-0 start-0 w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
-                                    <h5 class="card-title text-white mb-0 fw-bold" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-size: 1.1rem;">${char.name}</h5>
-                                </div>
-                            </div>
-                            <div class="card-body p-3">
-                                <div class="mb-2">
-                                    ${traitsHtml}
-                                </div>
-                                <p class="card-text small text-muted" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${char.description || 'Sin descripción disponible.'}</p>
-                            </div>
-                        </div>
-                    </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
-                });
-            } else {
-                charLoader.innerHTML = '<div class="alert alert-info">No se encontraron personajes.</div>';
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            charLoader.innerHTML = '<div class="alert alert-warning">Error al generar personajes.</div>';
-        });
-    }
+    // Character Generation (Legacy code removed)
+
 });
 </script>
 </body>

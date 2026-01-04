@@ -645,9 +645,33 @@ body:not(.dark-mode) .btn-outline-light:hover {
             }
         });
     } else {
-        ctx.font = "14px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("Sin datos", 100, 100);
+        // Empty Graph State
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sin datos'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e2e8f0'],
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    hoverOffset: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        display: false 
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                cutout: '62%'
+            }
+        });
     }
 
     // Initialize tooltips

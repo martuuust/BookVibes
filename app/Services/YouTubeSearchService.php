@@ -122,61 +122,8 @@ class YouTubeSearchService
     }
 
 
-    private function searchOnce(string $query): array
-    {
-        $url = 'https://www.youtube.com/results?search_query=' . urlencode($query);
-        $html = $this->httpGet($url);
-        if ($html === null) return [];
-        $data = $this->extractInitialData($html);
-        if (!$data) return [];
-        $videos = $this->extractVideoRenderers($data);
-        $out = [];
-        foreach ($videos as $v) {
-            $title = $this->getText($v['title']['runs'] ?? []);
-            $artist = $this->getText($v['longBylineText']['runs'] ?? ($v['shortBylineText']['runs'] ?? []));
-            $id = $v['videoId'] ?? null;
-            if (!$id) continue;
-            $ageText = $v['publishedTimeText']['simpleText'] ?? ($v['publishedTimeText']['runs'][0]['text'] ?? '');
-            $item = [
-                'title' => $title ?: 'Desconocido',
-                'artist' => $artist ?: '',
-                'url' => 'https://www.youtube.com/watch?v=' . $id,
-                'age_text' => $ageText,
-                'years_ago' => $this->extractYearsAgo($ageText)
-            ];
-            if ($this->isIrrelevant($title)) continue;
-            $out[] = $item;
-        }
-        return $out;
-    }
- 
-    private function httpGet(string $url): ?string
-    {
-        $headers = [
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language: es-ES,es;q=0.9,en;q=0.8'
-        ];
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'header' => implode("\r\n", $headers),
-                'timeout' => 6
-            ],
-            'https' => [
-                'method' => 'GET',
-                'header' => implode("\r\n", $headers),
-                'timeout' => 6
-            ]
-        ]);
-        try {
-            $resp = @file_get_contents($url, false, $context);
-            if ($resp === false) return null;
-            return $resp;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
+    // searchOnce and httpGet removed
+
 
     private function extractInitialData(string $html): ?array
     {

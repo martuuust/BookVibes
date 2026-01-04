@@ -155,17 +155,6 @@ class MoodAnalyzer
         ];
     }
 
-    private function generateMockTracks(array $genres): array
-    {
-        $tracks = [];
-        for ($i = 0; $i < 5; $i++) {
-            $genre = $genres[array_rand($genres)];
-            $tracks[] = [
-                'title' => "Track #$i ($genre)",
-                'artist' => "Artista de $genre",
-                'url' => '#'
-            ];
-        }
-        return $tracks;
-    }
+    // generateMockTracks removed
+
 }
