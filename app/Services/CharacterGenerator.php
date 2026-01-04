@@ -35,6 +35,10 @@ class CharacterGenerator
             }
         }
         
+        if (empty($characters)) {
+            $characters = $this->fallbackMinimalCharacters($bookData);
+        }
+
         if (empty($characters)) return [];
 
         $characters = $this->normalizeCharactersList($characters);
@@ -70,13 +74,17 @@ class CharacterGenerator
         return $enriched;
     }
 
-    public function generateSingleCharacter(string $bookTitle, array $characterData): array
+    public function generateSingleCharacter(string $bookTitle, array $characterData, array $context = []): array
     {
         $name = $characterData['name'];
         $desc = $characterData['description'] ?? '';
-        $traits = $this->extractTraits($desc);
-        $prompt = $this->buildPrompt($bookTitle, $name, $traits);
-        $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($prompt);
+        $traits = $this->extractTraits($desc, $context['genre'] ?? '');
+        
+        // Add description to context for richer prompts
+        $context['description'] = $desc;
+        
+        $prompt = $this->buildPrompt($bookTitle, $name, $traits, $context);
+        $imageUrl = "https://pollinations.ai/p/" . urlencode($prompt);
         
         return [
             'name' => $name,
@@ -107,6 +115,9 @@ class CharacterGenerator
             }
         }
         if (empty($characters)) {
+            $characters = $this->fallbackMinimalCharacters($bookData);
+        }
+        if (empty($characters)) {
             return [];
         }
         $characters = $this->normalizeCharactersList($characters);
@@ -127,9 +138,14 @@ class CharacterGenerator
         if (empty($main)) $main = $enriched;
         $result = [];
         foreach ($main as $c) {
-            $traits = $this->extractTraits($c['description']);
-            $prompt = $this->buildPrompt($title, $c['name'], $traits);
-            $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($prompt);
+            $traits = $this->extractTraits($c['description'], $bookData['genre'] ?? '');
+            $context = [
+                'description' => $c['description'],
+                'mood' => $bookData['mood'] ?? '',
+                'genre' => $bookData['genre'] ?? ''
+            ];
+            $prompt = $this->buildPrompt($title, $c['name'], $traits, $context);
+            $imageUrl = "https://pollinations.ai/p/" . urlencode($prompt);
             $result[] = [
                 'name' => $c['name'],
                 'description' => $c['description'],
@@ -171,33 +187,56 @@ class CharacterGenerator
     private function wikiFindPage(string $title, string $lang, string $author = ''): ?array
     {
         $queries = [];
+        // Define queries with priority keys
+        $keys = [];
+        
         if ($author) {
             // High confidence queries
-            $queries[] = $title . " " . $author;
+            $k = 'author_1'; $keys[] = $k;
+            $queries[$k] = $title . " " . $author;
+            
+            $k = 'author_2'; $keys[] = $k;
             if ($lang === 'es') {
-                $queries[] = $title . " " . $author . " novela";
+                $queries[$k] = $title . " " . $author . " novela";
             } else {
-                $queries[] = $title . " " . $author . " novel";
+                $queries[$k] = $title . " " . $author . " novel";
             }
         }
         
         // Medium confidence
+        $k = 'medium_1'; $keys[] = $k;
         if ($lang === 'es') {
-             $queries[] = $title . " (novela)";
-             $queries[] = $title . " (libro)";
+             $queries[$k] = $title . " (novela)";
         } else {
-             $queries[] = $title . " (novel)";
-             $queries[] = $title . " (book)";
+             $queries[$k] = $title . " (novel)";
+        }
+        
+        $k = 'medium_2'; $keys[] = $k;
+        if ($lang === 'es') {
+             $queries[$k] = $title . " (libro)";
+        } else {
+             $queries[$k] = $title . " (book)";
         }
         
         // Low confidence (just title)
-        $queries[] = $title;
+        $k = 'low_1'; $keys[] = $k;
+        $queries[$k] = $title;
 
-        foreach ($queries as $q) {
-            $url = "https://{$lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=" . urlencode($q) . "&format=json&srlimit=5";
-            $json = $this->fetchUrl($url);
-            if (!$json) continue;
+        // Construct URLs
+        $urls = [];
+        foreach ($queries as $k => $q) {
+            $urls[$k] = "https://{$lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=" . urlencode($q) . "&format=json&srlimit=5";
+        }
+
+        // Parallel Fetch
+        $responses = $this->multiFetchUrl($urls);
+
+        // Process in priority order
+        foreach ($keys as $k) {
+            $url = $urls[$k];
+            if (!isset($responses[$url])) continue;
             
+            $json = $responses[$url];
             $data = json_decode($json, true);
             if (!empty($data['query']['search'])) {
                 foreach ($data['query']['search'] as $item) {
@@ -210,7 +249,6 @@ class CharacterGenerator
 
                     // Check for specific keywords indicating a book/novel
                     if (preg_match('/\(novel|\(book|\(libro|\(novela/i', $t)) {
-                        // verify similarity to avoid false positives (e.g. searching "Shadow" getting "Chocolat (novela)")
                         $cleanT = preg_replace('/\(novel|\(book|\(libro|\(novela|\)/i', '', $t);
                         $cleanT = trim($cleanT);
                         
@@ -232,16 +270,14 @@ class CharacterGenerator
                     }
                 }
                 
-                // If query was specific (e.g. "Title (novel)"), and we haven't found a match yet, 
-                // we might want to return the top result IF it's not the author AND it looks similar
-                if (strpos($q, '(') !== false) {
+                // If query was specific (e.g. "Title (novel)"), and we haven't found a match yet
+                // Check top result
+                if (strpos($queries[$k], '(') !== false) {
                      $top = $data['query']['search'][0]['title'];
-                     // Clean both title and top result for comparison
                      $cleanTop = preg_replace('/\(novel|\(book|\(libro|\(novela|\)/i', '', $top);
                      $cleanTop = trim($cleanTop);
                      
                      if (!$author || stripos($top, $author) === false) {
-                         // Check similarity
                          similar_text($this->mbLower($title), $this->mbLower($cleanTop), $sim);
                          if ($sim > 70 || stripos($cleanTop, $title) !== false || stripos($title, $cleanTop) !== false) {
                              return ['title' => $top, 'lang' => $lang];
@@ -250,6 +286,7 @@ class CharacterGenerator
                 }
             }
         }
+        
         return null;
     }
 
@@ -1296,7 +1333,35 @@ class CharacterGenerator
 
     private function fallbackMinimalCharacters(array $bookData): array
     {
-        return [];
+        $title = $bookData['title'] ?? '';
+        $author = $bookData['author'] ?? '';
+        $out = [];
+        
+        $t = $title;
+        // Remove subtitle
+        $t = preg_replace('/[:\-].*$/', '', $t);
+        
+        // Check for "Name and Name" pattern
+        if (preg_match('/^([A-Z][a-z]+)\s+(?:and|y|&)\s+([A-Z][a-z]+)$/u', $t, $m)) {
+            $out[] = ['name' => $m[1], 'description' => "Main character from $title", 'url' => '', 'lang' => 'en'];
+            $out[] = ['name' => $m[2], 'description' => "Main character from $title", 'url' => '', 'lang' => 'en'];
+        }
+        
+        // Check for "The Adventures of Name"
+        if (preg_match('/(?:The Adventures of|Las Aventuras de|The Story of|La Historia de)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/ui', $t, $m)) {
+             $out[] = ['name' => $m[1], 'description' => "Protagonist of $title", 'url' => '', 'lang' => 'en'];
+        }
+        
+        // Check for "Name Potter", "Name Jackson" etc (common hero names) or just Name
+        // But exclude "The Name"
+        if (preg_match('/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)$/u', $t, $m)) {
+            // Only if it doesn't look like "The Something"
+            if (!preg_match('/^(The|El|La|Los|Las|Un|Una)\b/i', $m[1])) {
+                 $out[] = ['name' => $m[1], 'description' => "Title character of $title", 'url' => '', 'lang' => 'en'];
+            }
+        }
+        
+        return $out;
     }
 
     private function filterMainCharacters(array $chars): array
@@ -1317,7 +1382,8 @@ class CharacterGenerator
                 if (in_array($t, $traits, true)) $score += 2;
             }
             if (!empty($c['url'])) $score += 1;
-            $score += (int)($c['source_count'] ?? 1);
+            // Prioritize characters appearing in multiple sources heavily
+            $score += ((int)($c['source_count'] ?? 1)) * 3;
             $scores[$idx] = $score;
         }
         arsort($scores);
@@ -1501,55 +1567,114 @@ class CharacterGenerator
         return $out;
     }
 
-    private function extractTraits(string $description): array
+    private function extractTraits(string $description, string $genre = ''): array
     {
         $text = strtolower($description);
         $traits = [];
         $roles = ['protagonist','antagonist','deuteragonist','tritagonist','mentor','villain','hero','antihero',
                   'wizard','witch','student','detective','soldier','king','queen','duke','princess','prince'];
-        $personality = ['brave','smart','loyal','cunning','kind','cruel','ambitious','jealous','fearless','introvert','extrovert'];
-        $appearance = ['young','teenager','adult','elderly','tall','short','slim','muscular','blonde','dark-haired','red-haired','blue-eyed','green-eyed','scar'];
+        $appearance = ['young','teenager','adult','elderly','tall','short','slim','muscular','blonde','blonde hair','dark-haired','dark hair','red-haired','red hair','blue-eyed','blue eyes','green-eyed','green eyes','scar','glasses','beard','mustache','bald','long hair','short hair','curly hair','straight hair','tattoo','piercing','pale','tanned','freckles'];
         $spanishRoles = ['protagonista','antagonista','mentor','villano','héroe','antiheroe','mago','bruja','estudiante','detective','soldado','rey','reina','princesa','príncipe'];
-        $spanishPersonality = ['valiente','inteligente','leal','astuto','amable','cruel','ambicioso','celoso','audaz','introvertido','extrovertido'];
-        $spanishAppearance = ['joven','adolescente','adulto','anciano','alto','bajo','delgado','musculoso','rubio','moreno','pelirrojo','ojos azules','ojos verdes','cicatriz'];
-        foreach (array_merge($roles,$personality,$appearance,$spanishRoles,$spanishPersonality,$spanishAppearance) as $c) {
-            if (strpos($text, $c) !== false) $traits[] = $c;
+        $spanishAppearance = ['joven','adolescente','adulto','anciano','alto','bajo','delgado','musculoso','rubio','moreno','pelirrojo','ojos azules','ojos verdes','cicatriz','gafas','lentes','barba','bigote','calvo','pelo largo','pelo corto','pelo rizado','pelo liso','tatuaje','piercing','palido','bronceado','pecas'];
+        
+        // Use word boundaries for better accuracy
+        foreach (array_merge($roles,$appearance,$spanishRoles,$spanishAppearance) as $c) {
+            // Regex to match whole words only, avoiding partial matches (e.g. "short" in "shortage" - unlikely but safe)
+            // and avoiding negations like "not tall" requires more complex NLP, but boundaries help.
+            if (preg_match('/\b' . preg_quote($c, '/') . '\b/i', $text)) {
+                $traits[] = $c;
+            }
         }
+        
+        // Fallback to genre-based traits if no visual traits found
+        // Check if we have any appearance traits
+        $hasVisual = false;
+        $allVisuals = array_merge($appearance, $spanishAppearance);
+        foreach ($traits as $t) {
+            if (in_array($t, $allVisuals)) {
+                $hasVisual = true;
+                break;
+            }
+        }
+        
+        if (!$hasVisual && $genre) {
+            $g = strtolower($genre);
+            if (strpos($g, 'fantasy') !== false || strpos($g, 'fantasía') !== false) {
+                $traits[] = 'medieval clothing';
+            } elseif (strpos($g, 'sci-fi') !== false || strpos($g, 'science fiction') !== false || strpos($g, 'ciencia ficción') !== false) {
+                $traits[] = 'futuristic clothing';
+            } elseif (strpos($g, 'romance') !== false || strpos($g, 'romántico') !== false) {
+                $traits[] = 'attractive';
+                $traits[] = 'stylish';
+            } elseif (strpos($g, 'horror') !== false || strpos($g, 'terror') !== false) {
+                $traits[] = 'pale';
+                $traits[] = 'shadowy';
+            } elseif (strpos($g, 'historical') !== false || strpos($g, 'histórica') !== false) {
+                $traits[] = 'period clothing';
+            } elseif (strpos($g, 'thriller') !== false || strpos($g, 'mystery') !== false || strpos($g, 'misterio') !== false) {
+                $traits[] = 'serious expression';
+            }
+        }
+        
         return array_slice(array_unique($traits), 0, 8);
     }
 
-    private function buildPrompt(string $bookTitle, string $name, array $traits): string
+    private function buildPrompt(string $bookTitle, string $name, array $traits, array $context = []): string
     {
         $t = array_map(function($x){ return strtolower($x); }, $traits);
-        $age = '';
-        if (in_array('teenager', $t) || in_array('adolescente', $t) || in_array('young', $t) || in_array('joven', $t)) {
-            $age = 'teenager';
-        } elseif (in_array('adult', $t) || in_array('adulto', $t)) {
-            $age = 'adult';
-        } elseif (in_array('elderly', $t) || in_array('anciano', $t)) {
-            $age = 'elderly';
+        
+        // Construct Archetype from traits and description
+        $roles = [];
+        $possibleRoles = ['protagonist','protagonista','antagonist','antagonista','hero','héroe','heroine','heroína','villain','villano','mentor','sidekick','companion','wizard','witch','detective','soldier','king','queen','prince','princess'];
+        foreach ($possibleRoles as $r) {
+            if (in_array($r, $t, true)) $roles[] = ucfirst($r);
         }
-        $roleTags = [];
-        foreach (['protagonist','protagonista','antagonist','antagonista','hero','héroe','heroine','heroína','villain','villano','mentor'] as $r) {
-            if (in_array($r, $t, true)) $roleTags[] = $r;
+        
+        $arquetipo = $name;
+        if (!empty($roles)) {
+            $arquetipo .= " (" . implode(', ', array_unique($roles)) . ")";
         }
-        $personalityTags = [];
-        foreach (['brave','valiente','smart','inteligente','loyal','leal','cunning','astuto','kind','amable','cruel','ambicioso','ambitious','introvertido','introvert','extrovertido','extrovert'] as $p) {
-            if (in_array($p, $t, true)) $personalityTags[] = $p;
+        
+        // Add visual traits to archetype for better character consistency
+        $visualTraits = [];
+        $possibleVisuals = ['tall','alto','short','bajo','slim','delgado','muscular','musculoso','blonde','rubio','dark-haired','moreno','red-haired','pelirrojo','blue-eyed','ojos azules','green-eyed','ojos verdes','scar','cicatriz','glasses','gafas','beard','barba','mustache','bigote','bald','calvo','long hair','pelo largo','short hair','pelo corto','curly hair','pelo rizado','straight hair','pelo liso','tattoo','tatuaje','piercing','pale','palido','tanned','bronceado','freckles','pecas'];
+        
+        foreach ($possibleVisuals as $v) {
+            if (in_array($v, $t, true)) $visualTraits[] = $v;
         }
-        $appearanceTags = [];
-        foreach (['tall','alto','short','bajo','slim','delgado','muscular','musculoso','blonde','rubio','dark-haired','moreno','red-haired','pelirrojo','blue-eyed','ojos azules','green-eyed','ojos verdes','scar','cicatriz'] as $a) {
-            if (in_array($a, $t, true)) $appearanceTags[] = $a;
+        
+        if (!empty($visualTraits)) {
+            $arquetipo .= ". Visual traits: " . implode(', ', array_unique($visualTraits));
         }
-        $parts = [];
-        $parts[] = "{$name} from {$bookTitle}";
-        if ($age) $parts[] = $age;
-        if (!empty($roleTags)) $parts[] = implode(', ', $roleTags);
-        if (!empty($appearanceTags)) $parts[] = implode(', ', $appearanceTags);
-        if (!empty($personalityTags)) $parts[] = implode(', ', $personalityTags);
-        $style = "photorealistic human portrait, ultra realistic, natural skin texture, realistic proportions, soft studio lighting, shallow depth of field, 50mm lens, high detail, color graded";
-        $neg = "no cartoon, no anime, no illustration, no cgi, no 3d render, no stylized";
-        $prompt = implode(', ', $parts) . ", " . $style . ", " . $neg;
+
+        if (!empty($context['description'])) {
+            $descShort = strip_tags($context['description']);
+            // Limit description length to avoid prompt overflow, but keep enough for essence
+            if (strlen($descShort) > 150) {
+                $descShort = substr($descShort, 0, 147) . "...";
+            }
+            $arquetipo .= ". " . $descShort;
+        }
+
+        // Construct Tone
+        $tono = $context['mood'] ?? 'Literary, Atmospheric';
+        if (empty($tono)) $tono = 'Literary, Atmospheric';
+
+        // Construct World/Era
+        $epoca_mundo = $bookTitle;
+        if (!empty($context['genre'])) {
+            $epoca_mundo .= " (" . $context['genre'] . ")";
+        } else {
+             $epoca_mundo .= " (Novel universe)";
+        }
+        
+        // Clean up variables
+        $arquetipo = str_replace(["\r", "\n"], " ", $arquetipo);
+        $tono = str_replace(["\r", "\n"], " ", $tono);
+        $epoca_mundo = str_replace(["\r", "\n"], " ", $epoca_mundo);
+
+        $prompt = "Illustrated character from a fictional book. \n \n IMPORTANT: \n - This is NOT a real person \n - This is NOT a photograph \n - Do NOT use photorealism \n - Do NOT look like a modern portrait or stock photo \n \n Style: \n - Book character illustration \n - Digital painting \n - Slightly stylized \n - Narrative / literary feel \n - Timeless appearance \n - Soft lighting \n - Neutral or textured background \n \n Composition: \n - Centered character \n - Portrait orientation \n - Card-style illustration \n - Subtle vignette \n - No text in the image \n \n Character hints: \n - Archetype: {$arquetipo} \n - Mood: {$tono} \n - World / era: {$epoca_mundo} \n \n The character should feel like they belong to a novel, \n not to the real world.";
+        
         return $this->sanitizePrompt($prompt);
     }
 
@@ -1755,7 +1880,10 @@ class CharacterGenerator
         // Stopwords blacklist (English and Spanish)
         $stopwords = [
             'The', 'A', 'An', 'This', 'That', 'It', 'He', 'She', 'They', 'We', 'You', 'I', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'By', 'From', 'About', 'As', 'If', 'But', 'Or', 'And', 'Not', 'No', 'Yes', 'So', 'Then', 'Else', 'When', 'Where', 'Why', 'How', 'Which', 'Who', 'What', 'Is', 'Are', 'Was', 'Were', 'Be', 'Been', 'Being', 'Has', 'Have', 'Had', 'Do', 'Does', 'Did', 'Can', 'Could', 'Will', 'Would', 'Shall', 'Should', 'May', 'Might', 'Must', 'My', 'Your', 'His', 'Her', 'Its', 'Our', 'Their', 'Each', 'These', 'Those', 'Some', 'Any', 'All', 'Many', 'Much', 'Few', 'Little', 'Other', 'Another', 'Such', 'Same', 'Different', 'Own', 'Very', 'Too', 'Also', 'Just', 'Now', 'Only', 'Even', 'Still', 'Back', 'Here', 'There', 'Up', 'Down', 'Out', 'Over', 'Under', 'Above', 'Below', 'Between', 'Through', 'Into', 'During', 'Before', 'After', 'Since', 'Until', 'While', 'Although', 'Though', 'Because', 'Unless', 'However', 'Therefore', 'Thus', 'Hence', 'Yet', 'Nor', 'Philosopher', 'Stone', 'British', 'Rowling', 'Book', 'Series', 'List', 'Page', 'Edit', 'History', 'Talk', 'Main', 'Article', 'Read', 'View', 'Source', 'Search', 'Navigation', 'Contribute', 'Tools', 'Print', 'Languages', 'Download', 'Help', 'Community', 'Portal', 'Recent', 'Changes', 'Upload', 'File', 'Special', 'Pages', 'Permanent', 'Link', 'Cite', 'Create', 'Account', 'Log', 'User', 'Talk', 'Contributions', 'Preferences', 'Watchlist',
-            'El', 'La', 'Los', 'Las', 'Un', 'Una', 'Unos', 'Unas', 'Este', 'Esta', 'Estos', 'Estas', 'Ese', 'Esa', 'Esos', 'Esas', 'Aquel', 'Aquella', 'Aquellos', 'Aquellas', 'Yo', 'Tu', 'Ella', 'Ellos', 'Ellas', 'Nosotros', 'Vosotros', 'Usted', 'Ustedes', 'Mi', 'Su', 'Nuestro', 'Vuestro', 'Sus', 'Que', 'Quien', 'Cual', 'Donde', 'Cuando', 'Como', 'Por', 'Para', 'Con', 'Sin', 'Sobre', 'Entre', 'Hasta', 'Desde', 'Durante', 'Antes', 'Despues', 'Mientras', 'Aunque', 'Pero', 'Sino', 'Ni', 'Si', 'Tal', 'Tan', 'Muy', 'Mas', 'Menos', 'Mucho', 'Poco', 'Todo', 'Nada', 'Algo', 'Alguien', 'Nadie', 'Algun', 'Ningun', 'Otro', 'Mismo', 'Editar', 'Historial', 'Discusion', 'Leer', 'Ver', 'Fuente', 'Buscar', 'Navegacion', 'Contribuir', 'Herramientas', 'Imprimir', 'Idiomas', 'Descargar', 'Ayuda', 'Comunidad', 'Cambios', 'Subir', 'Archivo', 'Especial', 'Paginas', 'Enlace', 'Citar', 'Crear', 'Cuenta', 'Acceder', 'Usuario', 'Contribuciones', 'Preferencias', 'Lista', 'Seguimiento'
+            'El', 'La', 'Los', 'Las', 'Un', 'Una', 'Unos', 'Unas', 'Este', 'Esta', 'Estos', 'Estas', 'Ese', 'Esa', 'Esos', 'Esas', 'Aquel', 'Aquella', 'Aquellos', 'Aquellas', 'Yo', 'Tu', 'Ella', 'Ellos', 'Ellas', 'Nosotros', 'Vosotros', 'Usted', 'Ustedes', 'Mi', 'Su', 'Nuestro', 'Vuestro', 'Sus', 'Que', 'Quien', 'Cual', 'Donde', 'Cuando', 'Como', 'Por', 'Para', 'Con', 'Sin', 'Sobre', 'Entre', 'Hasta', 'Desde', 'Durante', 'Antes', 'Despues', 'Mientras', 'Aunque', 'Pero', 'Sino', 'Ni', 'Si', 'Tal', 'Tan', 'Muy', 'Mas', 'Menos', 'Mucho', 'Poco', 'Todo', 'Nada', 'Algo', 'Alguien', 'Nadie', 'Algun', 'Ningun', 'Otro', 'Mismo', 'Editar', 'Historial', 'Discusion', 'Leer', 'Ver', 'Fuente', 'Buscar', 'Navegacion', 'Contribuir', 'Herramientas', 'Imprimir', 'Idiomas', 'Descargar', 'Ayuda', 'Comunidad', 'Cambios', 'Subir', 'Archivo', 'Especial', 'Paginas', 'Enlace', 'Citar', 'Crear', 'Cuenta', 'Acceder', 'Usuario', 'Contribuciones', 'Preferencias', 'Lista', 'Seguimiento',
+            // Common UI/Navigation terms to blacklist (Scraper noise)
+            'Home', 'Browse', 'Search', 'Login', 'Sign', 'Up', 'Join', 'Profile', 'Account', 'Settings', 'Messages', 'Notifications', 'Help', 'Support', 'About', 'Careers', 'Terms', 'Privacy', 'Cookies', 'Advertise', 'Developers', 'Copyright', 'Language', 'Region', 'Goodreads', 'Kindle', 'Amazon', 'Audible', 'Edition', 'Paperback', 'Hardcover', 'Ebook', 'Audiobook', 'Books', 'My', 'Lists', 'Groups', 'Discussions', 'Quotes', 'Ask', 'Author', 'More', 'Details', 'Get', 'Copy', 'Friend', 'Reviews', 'Follow', 'Vote', 'Like', 'Comment', 'Share', 'Blog', 'People', 'Recommendations', 'Explore', 'Inc', 'Llc', 'Ltd', 'Corp', 'Rights', 'Reserved', 'Mobile', 'Desktop', 'App', 'Apps', 'API', 'Site', 'Map', 'Index', 'Log', 'Out', 'In', 'New', 'Best', 'Sellers', 'Release', 'Coming', 'Soon', 'Most', 'Popular', 'Top', 'Rated', 'Genre', 'Genres', 'Giveaways', 'Choice', 'Awards', 'Events', 'Interviews', 'News', 'Features', 'Video', 'Videos', 'Podcast', 'Podcasts',
+            'Inicio', 'Explorar', 'Mis', 'Libros', 'Recomendaciones', 'Grupos', 'Discusión', 'Citas', 'Preguntar', 'Autor', 'Más', 'Detalles', 'Obtener', 'Copia', 'Amigo', 'Reseñas', 'Seguir', 'Votar', 'Me', 'Gusta', 'Comentar', 'Compartir', 'Gente', 'Iniciar', 'Sesión', 'Unirse', 'Gratis', 'Configuración', 'Cuenta', 'Perfil', 'Mensajes', 'Notificaciones', 'Quiero', 'Leer', 'Leyendo', 'Leído', 'Estanterías', 'Buscar', 'Mapa', 'Sitio', 'Acerca', 'Carreras', 'Publicidad', 'Móvil', 'Aplicaciones', 'Escritorio', 'Derechos', 'Reservados', 'Términos', 'Privacidad', 'Cookies', 'Desarrolladores', 'Ayuda', 'Soporte', 'Idioma', 'Región', 'Edición', 'Tapa', 'Blanda', 'Dura', 'Electrónico', 'Audio', 'Mejores', 'Vendedores', 'Lanzamiento', 'Próximamente', 'Más', 'Populares', 'Mejor', 'Valorados', 'Género', 'Géneros', 'Sorteos', 'Elección', 'Premios', 'Eventos', 'Entrevistas', 'Noticias', 'Características', 'Video', 'Videos', 'Podcast', 'Podcasts'
         ];
         
         if (in_array($trim, $stopwords)) return false;
@@ -1775,7 +1903,7 @@ class CharacterGenerator
             $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
             if ($t !== false) $text = $t;
         }
-        return trim(substr($text, 0, 180));
+        return trim(substr($text, 0, 1500));
     }
 
     private function shorten(string $text): string
@@ -1790,7 +1918,7 @@ class CharacterGenerator
     {
         $key = $this->mbLower(trim($title . '_' . $author));
         $key = preg_replace('/[^a-z0-9\-]+/i', '_', $key);
-        return $key;
+        return $key . '_v2';
     }
 
     private function cacheDir(): string

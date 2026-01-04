@@ -17,14 +17,15 @@ class Installer
             return; // All good
         } catch (\Exception $e) {
             // Connection failed or table doesn't exist.
-            // Check if it is "Unknown database" or "Table doesn't exist"
-            if (strpos($e->getMessage(), 'Unknown database') !== false || 
-                strpos($e->getMessage(), "doesn't exist") !== false) {
+            // Check if it is "Unknown database" (1049) or "Table doesn't exist" (1146)
+            $msg = $e->getMessage();
+            $code = $e->getCode();
+            
+            if ($code == 1049 || $code == 1146 || 
+                stripos($msg, 'Unknown database') !== false || 
+                stripos($msg, "doesn't exist") !== false) {
                 // Proceed to install
                 self::install();
-            } else {
-                 // Other error, rethrow
-                 // But for robustness in this simple app, we might just try to install anyway or log it.
             }
         }
     }

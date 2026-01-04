@@ -116,7 +116,7 @@ class ScraperService
             "http" => [
                 "method" => "GET",
                 "header" => "User-Agent: BookVibes/1.0 (Student Project)\r\n",
-                "timeout" => 10
+                "timeout" => 3
             ],
             "ssl" => [
                 "verify_peer" => false,

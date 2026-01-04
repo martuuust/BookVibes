@@ -8,11 +8,96 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
+        /* Premium Character Card Styles */
+        .premium-char-card {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            background: var(--card-bg, #1e293b);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            height: 100%;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .premium-char-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px -5px rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+            z-index: 5;
+        }
+        .premium-char-img-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 140%; /* Portrait Aspect Ratio */
+            overflow: hidden;
+        }
+        .premium-char-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.7s ease;
+        }
+        .premium-char-card:hover .premium-char-img {
+            transform: scale(1.1);
+        }
+        .premium-char-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.6) 70%, transparent 100%);
+            padding: 2rem 1.25rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .premium-char-name {
+            color: white;
+            font-weight: 800;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: -0.02em;
+        }
+        .premium-char-role {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .premium-char-traits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .premium-trait-pill {
+            font-size: 0.65rem;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translate3d(0, 20px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+        }
+
         .blur-content {
-            filter: blur(12px);
+            filter: blur(8px);
             pointer-events: none;
             user-select: none;
-            opacity: 0.5;
+            opacity: 0.8;
         }
         .pro-lock-overlay {
             position: absolute;
@@ -716,11 +801,40 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
                         <!-- Step 2: Selection -->
                         <div id="char-selection-area" class="d-none">
+                            <style>
+                                .char-selection-card {
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                    border: 2px solid transparent;
+                                    background: rgba(255, 255, 255, 0.05);
+                                }
+                                .char-selection-card:hover {
+                                    transform: translateY(-5px);
+                                    background: rgba(255, 255, 255, 0.1);
+                                }
+                                .char-selection-card.selected {
+                                    border-color: var(--primary-color, #6366f1);
+                                    background: rgba(99, 102, 241, 0.1);
+                                    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+                                }
+                                .char-placeholder-icon {
+                                    width: 60px;
+                                    height: 60px;
+                                    border-radius: 50%;
+                                    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 1.5rem;
+                                    color: white;
+                                    margin: 0 auto 10px;
+                                }
+                            </style>
                             <div class="mb-3" id="char-select-container">
-                                <label class="form-label small text-muted text-uppercase fw-bold">Personaje</label>
-                                <select id="char-select" class="form-select form-select-lg" onchange="updateCharPreview()">
-                                    <option value="">-- Selecciona un personaje --</option>
-                                </select>
+                                <label class="form-label small text-muted text-uppercase fw-bold mb-3">Selecciona un Personaje</label>
+                                <div id="char-grid" class="row g-3" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 5px;">
+                                    <!-- Grid items injected by JS -->
+                                </div>
                             </div>
                             
                             <div id="char-manual-container" class="mb-3 d-none">
@@ -752,78 +866,51 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
             <?php endif; ?>
 
             <div class="position-relative">
-                <?php if(!$isPro): ?>
-                    <div class="pro-lock-overlay">
-                        <div class="lock-card">
-                            <div class="mb-4">
-                                <div style="width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                                    <i class="bi bi-stars text-warning display-4"></i>
-                                </div>
-                            </div>
-                            <h4 class="fw-bold mb-3">Descubre los Personajes</h4>
-                            <p class="text-white-50 mb-4 lh-sm">Visualiza a los protagonistas de tu historia con arte generado por IA. Exclusivo para miembros Pro.</p>
-                            <a href="/pro/upgrade?book_id=<?= urlencode($book['id']) ?>&feature=characters" class="btn btn-primary-glow fw-bold px-4 py-3 w-100 rounded-pill">
-                                <i class="bi bi-unlock-fill me-2"></i>Desbloquear Ahora
-                            </a>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
+                
                 <!-- Empty State Trigger (Pro Only, No Characters) -->
-                <?php if($isPro && empty($characters)): ?>
+                <?php if(empty($characters)): ?>
                     <div id="char-empty-state" class="text-center py-5">
                         <div class="mb-4">
                             <div style="width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
                                 <i class="bi bi-person-badge text-primary display-4"></i>
                             </div>
                         </div>
-                        <h4 class="fw-bold mb-3">Personajes de la Historia</h4>
-                        <p class="text-muted mb-4">Aún no has generado ningún personaje. ¡Empieza ahora!</p>
-                        <button onclick="showCharGen()" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg transition-hover">
-                            <i class="bi bi-magic me-2"></i>Generar Personajes
-                        </button>
+                        <h4 class="fw-bold mb-3" style="color: var(--text-body);">Personajes de la Historia</h4>
+                        <p class="text-muted mb-4">Generando personajes automáticamente...</p>
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
                     </div>
                 <?php endif; ?>
 
-                <div id="characters-section" class="<?= ($isPro && empty($characters)) ? 'd-none' : '' ?>">
+                <div id="characters-section" class="<?= empty($characters) ? 'd-none' : '' ?>">
                     <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-2">
                         <h3 class="mb-0 fw-bold">Personajes</h3>
-                        <?php if($isPro): ?>
-                            <button onclick="showCharGen()" class="btn btn-sm btn-outline-primary rounded-pill px-3 transition-hover">
-                                <i class="bi bi-plus-lg me-1"></i>Generar
-                            </button>
-                        <?php endif; ?>
                     </div>
 
                     <div class="row <?= !$isPro ? 'blur-content' : '' ?>" id="characters-list">
                         <?php foreach($characters as $char): ?>
-                        <div class="col-md-6 mb-4">
-                            <div class="card character-card h-100 border-0 shadow-sm">
-                                <div class="row g-0 h-100">
-                                    <div class="col-md-5">
-                                        <img src="<?= htmlspecialchars($char['image_url']) ?>" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="<?= htmlspecialchars($char['name']) ?>">
-                                    </div>
-                                    <div class="col-md-7">
-                                        <div class="card-body">
-                                            <h5 class="card-title"><?= htmlspecialchars($char['name']) ?></h5>
+                        <div class="col-6 col-md-4 col-lg-3 mb-4">
+                            <div class="premium-char-card">
+                                <div class="premium-char-img-wrapper">
+                                    <img src="<?= htmlspecialchars($char['image_url']) ?>" class="premium-char-img" alt="<?= htmlspecialchars($char['name']) ?>">
+                                    <div class="premium-char-overlay">
+                                        <div class="premium-char-name"><?= htmlspecialchars($char['name']) ?></div>
+                                        <?php 
+                                            $traits = is_string($char['traits']) ? json_decode($char['traits'], true) : $char['traits'];
+                                            if(!empty($traits) && is_array($traits)): 
+                                        ?>
+                                        <div class="premium-char-traits">
+                                            <?php foreach(array_slice($traits, 0, 3) as $t): ?>
+                                                <span class="premium-trait-pill"><?= htmlspecialchars($t) ?></span>
+                                            <?php endforeach; ?>
                                         </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
-                        
-                        <?php if(!$isPro): ?>
-                            <?php for($i=0; $i<4; $i++): ?>
-                            <div class="col-md-6 mb-4">
-                                <div class="card character-card h-100 border-0 shadow-sm" style="min-height: 200px;">
-                                    <div class="card-body d-flex align-items-center justify-content-center">
-                                        <span class="text-muted">Contenido Bloqueado</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <?php endfor; ?>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -833,11 +920,153 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-
+    const IS_PRO = <?= json_encode($isPro) ?>;
 
     // Global variables for Character Generation
     let fetchedCharacters = [];
+    let characterListPromise = null;
+    let selectedCharIndex = null;
     const BOOK_ID = <?= json_encode($book['id']) ?>;
+
+    // Start background loading immediately when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        startBackgroundCharacterLoad();
+        checkPlaylistLoad();
+    });
+
+    function checkPlaylistLoad() {
+        const loader = document.getElementById('playlist-loader');
+        if (loader) {
+            loadPlaylist();
+        }
+    }
+
+    function loadPlaylist() {
+        fetch('/books/api-generate-playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok && data.playlist) {
+                window.location.reload();
+            } else {
+                const loader = document.getElementById('playlist-loader');
+                if (loader) loader.innerHTML = '<div class="text-danger p-3"><i class="bi bi-exclamation-circle me-2"></i>No se pudo generar la playlist.</div>';
+            }
+        })
+        .catch(err => {
+            const loader = document.getElementById('playlist-loader');
+            if (loader) loader.innerHTML = '<div class="text-danger p-3"><i class="bi bi-wifi-off me-2"></i>Error de conexión.</div>';
+        });
+    }
+
+    // Expose for regenerate button
+    window.regeneratePlaylist = function() {
+        if (!confirm('¿Regenerar playlist? Se perderán las canciones actuales.')) return;
+        
+        const container = document.querySelector('.glass-card'); // Parent container
+        if(container) {
+             container.innerHTML = '<div id="playlist-loader" class="p-5 text-center"><div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div><h6 class="text-white">Regenerando...</h6></div>';
+        }
+
+        fetch('/books/api-regenerate-playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Desconocido'));
+                window.location.reload();
+            }
+        })
+        .catch(e => {
+            alert('Error de red');
+            window.location.reload();
+        });
+    }
+
+    function startBackgroundCharacterLoad() {
+        if (characterListPromise) return; // Already started
+
+        // console.log('Starting background character fetch...');
+        characterListPromise = fetch('/books/fetch-character-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                fetchedCharacters = data.list.filter(c => c.name && c.name.trim().length > 0);
+                
+                // Automatically start generating characters
+                if (fetchedCharacters.length > 0) {
+                    processCharacterQueue(fetchedCharacters);
+                } else if (data.already_added_count > 0) {
+                    // Back Button Stale Cache Fix:
+                    // If backend says chars exist, but frontend list is empty (because cache served initial empty state),
+                    // we must reload to get the server-rendered characters.
+                    const grid = document.getElementById('characters-list');
+                    if (grid && grid.children.length === 0) {
+                        console.log('Stale cache detected (chars exist in DB but not in DOM). Reloading...');
+                        window.location.reload();
+                    }
+                }
+                
+                return { success: true, data: data };
+            } else {
+                console.warn('Background fetch error:', data.error);
+                return { success: false, error: data.error };
+            }
+        })
+        .catch(err => {
+            console.error('Background fetch network error:', err);
+            return { success: false, error: err };
+        });
+    }
+    
+    // Process queue sequentially to avoid overwhelming server/API
+    async function processCharacterQueue(chars) {
+        for (const char of chars) {
+            try {
+                // Check if already in grid (redundant but safe)
+                // Note: The backend already filtered existing ones, but we check JS state if needed.
+                
+                // Call generate
+                const response = await fetch('/books/generate-single-character', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        book_id: BOOK_ID,
+                        character: char
+                    })
+                });
+                
+                const res = await response.json();
+                if (res.ok && res.character) {
+                    addCharacterToGrid(res.character);
+                }
+            } catch (e) {
+                console.error("Error generating char:", char.name, e);
+            }
+            // Small delay between requests
+            await new Promise(r => setTimeout(r, 1000)); 
+        }
+        
+        // If we processed everything and grid is still empty (errors?), handle empty state
+        const emptyState = document.getElementById('char-empty-state');
+        if (emptyState && document.getElementById('characters-list').children.length === 0) {
+            emptyState.innerHTML = '<p class="text-muted">No se pudieron generar personajes.</p>';
+        } else if (emptyState) {
+             emptyState.remove();
+        }
+    }
 
     function showCharGen() {
         const ui = document.getElementById('char-gen-ui');
@@ -847,9 +1076,10 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         document.getElementById('char-list-loader').classList.remove('d-none');
         document.getElementById('char-selection-area').classList.add('d-none');
         document.getElementById('char-generating-loader').classList.add('d-none');
-        document.getElementById('char-select').innerHTML = '<option value="">-- Selecciona un personaje --</option>';
+        document.getElementById('char-grid').innerHTML = '';
         document.getElementById('btn-create-char').disabled = true;
         document.getElementById('char-desc-preview').classList.add('d-none');
+        selectedCharIndex = null;
         
         const existingMsg = document.getElementById('char-manual-msg');
         if (existingMsg) existingMsg.remove();
@@ -859,17 +1089,16 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         document.getElementById('char-select-container').classList.remove('d-none');
         document.getElementById('char-manual-container').classList.add('d-none');
 
-        // Fetch List
-        fetch('/books/fetch-character-list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_id: BOOK_ID })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                fetchedCharacters = data.list.filter(c => c.name && c.name.trim().length > 0);
-                const select = document.getElementById('char-select');
+        // Ensure fetch is started
+        if (!characterListPromise) {
+            startBackgroundCharacterLoad();
+        }
+
+        // Use the promise to update UI when ready
+        characterListPromise.then(result => {
+            if (result.success) {
+                const data = result.data;
+                const grid = document.getElementById('char-grid');
                 
                 document.getElementById('char-list-loader').classList.add('d-none');
                 document.getElementById('char-selection-area').classList.remove('d-none');
@@ -887,31 +1116,34 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                          document.getElementById('char-manual-container').prepend(msg);
                     }
                 } else {
-                    // Populate Select
-                    select.disabled = false;
+                    // Populate Grid
+                    grid.innerHTML = ''; 
+                    
                     fetchedCharacters.forEach((char, index) => {
-                        const opt = document.createElement('option');
-                        opt.value = index;
-                        opt.text = char.name + (char.source_count > 1 ? ` (${char.source_count} fuentes)` : '');
-                        select.add(opt);
+                        const col = document.createElement('div');
+                        col.className = 'col-6 col-md-4 col-lg-3';
+                        col.innerHTML = `
+                            <div class="card h-100 char-selection-card text-center p-3" onclick="selectCharacter(${index}, this)">
+                                <div class="char-placeholder-icon">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <h6 class="mb-1 fw-bold text-truncate" title="${char.name}">${char.name}</h6>
+                                <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                    ${char.source_count > 1 ? char.source_count + ' fuentes' : 'Fuente fiable'}
+                                </small>
+                            </div>
+                        `;
+                        grid.appendChild(col);
                     });
                 }
             } else {
                 // Error fallback -> Manual Mode
-                console.warn('API Error:', data.error);
+                console.warn('API Error or Network Error');
                 document.getElementById('char-list-loader').classList.add('d-none');
                 document.getElementById('char-selection-area').classList.remove('d-none');
                 document.getElementById('char-select-container').classList.add('d-none');
                 document.getElementById('char-manual-container').classList.remove('d-none');
             }
-        })
-        .catch(err => {
-            console.error(err);
-            // Network Error fallback -> Manual Mode
-            document.getElementById('char-list-loader').classList.add('d-none');
-            document.getElementById('char-selection-area').classList.remove('d-none');
-            document.getElementById('char-select-container').classList.add('d-none');
-            document.getElementById('char-manual-container').classList.remove('d-none');
         });
     }
 
@@ -919,19 +1151,25 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         document.getElementById('char-gen-ui').classList.add('d-none');
     }
 
+    function selectCharacter(index, cardElement) {
+        selectedCharIndex = index;
+        document.querySelectorAll('.char-selection-card').forEach(c => c.classList.remove('selected'));
+        cardElement.classList.add('selected');
+        updateCharPreview();
+    }
+
     function updateCharPreview() {
-        const index = document.getElementById('char-select').value;
         const previewBox = document.getElementById('char-desc-preview');
         const descText = document.getElementById('char-desc-text');
         const btn = document.getElementById('btn-create-char');
 
-        if (index === "" || !fetchedCharacters[index]) {
+        if (selectedCharIndex === null || !fetchedCharacters[selectedCharIndex]) {
             previewBox.classList.add('d-none');
             btn.disabled = true;
             return;
         }
 
-        const char = fetchedCharacters[index];
+        const char = fetchedCharacters[selectedCharIndex];
         if (char.description) {
             descText.textContent = char.description.substring(0, 150) + (char.description.length > 150 ? '...' : '');
             previewBox.classList.remove('d-none');
@@ -956,9 +1194,8 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
             if (name.length < 2) return;
             charData = { name: name, description: '' };
         } else {
-            const index = document.getElementById('char-select').value;
-            if (index === "" || !fetchedCharacters[index]) return;
-            charData = fetchedCharacters[index];
+            if (selectedCharIndex === null || !fetchedCharacters[selectedCharIndex]) return;
+            charData = fetchedCharacters[selectedCharIndex];
         }
         
         document.getElementById('char-selection-area').classList.add('d-none');
@@ -981,15 +1218,18 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 document.getElementById('char-selection-area').classList.remove('d-none');
                 
                 if (!isManual) {
-                    // Remove generated char from dropdown
-                    const select = document.getElementById('char-select');
-                    select.remove(select.selectedIndex);
-                    select.value = "";
+                    // Remove generated char from grid
+                    const selectedCard = document.querySelector('.char-selection-card.selected');
+                    if (selectedCard && selectedCard.parentElement) {
+                        selectedCard.parentElement.remove();
+                    }
+                    
+                    selectedCharIndex = null;
                     updateCharPreview();
                     
-                    // If list empty
-                    if (select.options.length <= 1) {
-                        // Switch to manual if list exhausted
+                    // If grid empty
+                    const grid = document.getElementById('char-grid');
+                    if (grid.children.length === 0) {
                         document.getElementById('char-select-container').classList.add('d-none');
                         document.getElementById('char-manual-container').classList.remove('d-none');
                     }
@@ -1015,23 +1255,34 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         const list = document.getElementById('characters-list');
         const noMsg = document.getElementById('no-chars-msg');
         if (noMsg) noMsg.remove();
+        
+        // Remove empty state if present
+        const emptyState = document.getElementById('char-empty-state');
+        if (emptyState) {
+            emptyState.classList.add('d-none');
+            document.getElementById('characters-section').classList.remove('d-none');
+        }
 
         const col = document.createElement('div');
-        col.className = 'col-md-6 mb-4 fade-in-up'; // Add animation class if available
+        col.className = 'col-6 col-md-4 col-lg-3 mb-4 fade-in-up'; 
+        
+        // Traits processing
+        let traitsHtml = '';
+        if (char.traits && Array.isArray(char.traits)) {
+            traitsHtml = '<div class="premium-char-traits">';
+            char.traits.slice(0, 3).forEach(t => {
+                traitsHtml += `<span class="premium-trait-pill">${t}</span>`;
+            });
+            traitsHtml += '</div>';
+        }
+
         col.innerHTML = `
-            <div class="card character-card h-100 border-0 shadow-sm">
-                <div class="row g-0 h-100">
-                    <div class="col-md-5">
-                        <img src="${char.image_url}" class="img-fluid rounded-start h-100" style="object-fit: cover; min-height: 200px;" alt="${char.name}">
-                    </div>
-                    <div class="col-md-7">
-                        <div class="card-body">
-                            <h5 class="card-title fw-bold">${char.name}</h5>
-                            <p class="card-text small text-muted line-clamp-3">${char.description || 'Sin descripción'}</p>
-                            <div class="mt-2">
-                                ${(char.traits || []).slice(0,3).map(t => `<span class="badge bg-light text-dark border me-1">${t}</span>`).join('')}
-                            </div>
-                        </div>
+            <div class="premium-char-card">
+                <div class="premium-char-img-wrapper">
+                    <img src="${char.image_url}" class="premium-char-img" alt="${char.name}">
+                    <div class="premium-char-overlay">
+                        <div class="premium-char-name">${char.name}</div>
+                        ${traitsHtml}
                     </div>
                 </div>
             </div>
@@ -1075,28 +1326,6 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     let currentVinyl = null;
 </script>
 <script>
-            // Generate Stars
-            const starsContainer = document.getElementById('stars-container');
-            const starCount = 300;
-
-            for (let i = 0; i < starCount; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                const x = Math.random() * 100;
-                const y = Math.random() * 100;
-                const size = Math.random() * 2 + 1; // 1px to 3px
-                const duration = Math.random() * 3 + 2; // 2s to 5s
-                
-                star.style.left = x + '%';
-                star.style.top = y + '%';
-                star.style.width = size + 'px';
-                star.style.height = size + 'px';
-                star.style.setProperty('--duration', duration + 's');
-                star.style.animationDelay = (Math.random() * 5) + 's';
-                
-                starsContainer.appendChild(star);
-            }
-        </script>
         <!-- Player Bar -->
         <div id="player-bar" class="player-bar d-none">
             <div id="ai-visualizer" class="ai-visualizer">

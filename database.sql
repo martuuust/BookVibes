@@ -54,9 +54,12 @@ CREATE TABLE IF NOT EXISTS playlists (
 CREATE TABLE IF NOT EXISTS songs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     playlist_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    artist VARCHAR(255),
+    title VARCHAR(100) NOT NULL,
+    artist VARCHAR(100),
     url VARCHAR(255), -- YouTube or Spotify link
+    is_ai_generated BOOLEAN DEFAULT 0,
+    lyrics TEXT NULL,
+    melody_description TEXT NULL,
     FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
     UNIQUE(playlist_id, title, artist)
 );

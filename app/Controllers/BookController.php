@@ -128,7 +128,9 @@ class BookController extends Controller
             $bookData = [
                 'title' => $book['title'],
                 'author' => $book['author'],
-                'synopsis' => $book['synopsis']
+                'synopsis' => $book['synopsis'],
+                'mood' => $book['mood'] ?? '',
+                'genre' => $book['genre'] ?? ''
             ];
             
             $characters = $charGen->generateCharacters($bookData);
@@ -154,11 +156,8 @@ class BookController extends Controller
     public function fetchCharacterList(Request $request)
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
-        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
-        if (!$isPro) {
-           return $this->json(['ok' => false, 'error' => 'Feature exclusive to Pro users'], 403);
-        }
-
+        // Allow all users to fetch list, but UI will handle blurring for non-Pro
+        
         $body = $request->getBody();
         $bookId = $body['book_id'] ?? null;
         if (!$bookId) return $this->json(['ok' => false, 'error' => 'No book ID'], 400);
@@ -202,11 +201,8 @@ class BookController extends Controller
     public function generateSingleCharacter(Request $request)
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
-        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
-        if (!$isPro) {
-           return $this->json(['ok' => false, 'error' => 'Feature exclusive to Pro users'], 403);
-        }
-
+        // Allow all users to generate, but UI will blur for non-Pro
+        
         $body = $request->getBody();
         $bookId = $body['book_id'] ?? null;
         $charData = $body['character'] ?? null; // Should contain name, description
@@ -228,7 +224,13 @@ class BookController extends Controller
 
         try {
             $charGen = new CharacterGenerator();
-            $result = $charGen->generateSingleCharacter($book['title'], $charData);
+            
+            $context = [
+                'mood' => $book['mood'] ?? '',
+                'genre' => $book['genre'] ?? ''
+            ];
+            
+            $result = $charGen->generateSingleCharacter($book['title'], $charData, $context);
             
             Character::create($bookId, $result);
             
@@ -326,6 +328,24 @@ class BookController extends Controller
                 }
             }
             
+            // Final fallback if still empty or very few
+            if (count($tracks) < 3) {
+                 $fallbacks = $this->getFallbackTracks($book['mood'] ?? '');
+                 foreach ($fallbacks as $fb) {
+                     // Check for duplicates
+                     $key = mb_strtolower(trim(($fb['title'] ?? '').'|'.($fb['artist'] ?? '')));
+                     $isDup = false;
+                     foreach ($tracks as $existing) {
+                         $exKey = mb_strtolower(trim(($existing['title'] ?? '').'|'.($existing['artist'] ?? '')));
+                         if ($key === $exKey) { $isDup = true; break; }
+                     }
+                     if (!$isDup) {
+                        $tracks[] = $fb;
+                     }
+                     if (count($tracks) >= $playlistLimit) break;
+                 }
+            }
+            
             // Generate AI Songs if Pro
             if ($accountType === 'Pro') {
                 $aiGen = new AISongGeneratorService();
@@ -389,6 +409,54 @@ class BookController extends Controller
 
         // Forward to generate new playlist
         return $this->apiGeneratePlaylist($request);
+    }
+
+    private function getFallbackTracks(string $mood): array
+    {
+        // Define fallback tracks based on general moods
+        $defaults = [
+            'Romántico' => [
+                ['title' => 'All of Me', 'artist' => 'John Legend', 'url' => 'https://www.youtube.com/watch?v=450p7goxZqg'],
+                ['title' => 'Perfect', 'artist' => 'Ed Sheeran', 'url' => 'https://www.youtube.com/watch?v=2Vv-BfVoq4g'],
+                ['title' => 'Just the Way You Are', 'artist' => 'Bruno Mars', 'url' => 'https://www.youtube.com/watch?v=LjhCEhWiKXk'],
+                ['title' => 'A Thousand Years', 'artist' => 'Christina Perri', 'url' => 'https://www.youtube.com/watch?v=rtOvBOTyX00'],
+                ['title' => 'Lover', 'artist' => 'Taylor Swift', 'url' => 'https://www.youtube.com/watch?v=-BjZmE2gtdo']
+            ],
+            'Misterio' => [
+                ['title' => 'Bad Guy', 'artist' => 'Billie Eilish', 'url' => 'https://www.youtube.com/watch?v=DyDfgMOUjCI'],
+                ['title' => 'Demons', 'artist' => 'Imagine Dragons', 'url' => 'https://www.youtube.com/watch?v=mWRsgZuwf_8'],
+                ['title' => 'Heathens', 'artist' => 'Twenty One Pilots', 'url' => 'https://www.youtube.com/watch?v=UprcpDW1qQY'],
+                ['title' => 'Bury a Friend', 'artist' => 'Billie Eilish', 'url' => 'https://www.youtube.com/watch?v=HUHC9tYz8ik'],
+                ['title' => 'In the Air Tonight', 'artist' => 'Phil Collins', 'url' => 'https://www.youtube.com/watch?v=YkADj0TPrJA']
+            ],
+            'Fantasía' => [
+                ['title' => 'The Lord of the Rings Theme', 'artist' => 'Howard Shore', 'url' => 'https://www.youtube.com/watch?v=_pGaz_qN0cw'],
+                ['title' => 'Game of Thrones Theme', 'artist' => 'Ramin Djawadi', 'url' => 'https://www.youtube.com/watch?v=s7L2PVnzflw'],
+                ['title' => 'Harry Potter Theme', 'artist' => 'John Williams', 'url' => 'https://www.youtube.com/watch?v=Htaj3o3JD8I'],
+                ['title' => 'Pirates of the Caribbean', 'artist' => 'Hans Zimmer', 'url' => 'https://www.youtube.com/watch?v=27mB8verLK8'],
+                ['title' => 'Avatar Theme', 'artist' => 'James Horner', 'url' => 'https://www.youtube.com/watch?v=1w0_kazbb_U']
+            ],
+            'Terror' => [
+                ['title' => 'Thriller', 'artist' => 'Michael Jackson', 'url' => 'https://www.youtube.com/watch?v=sOnqjkJTMaA'],
+                ['title' => 'Halloween Theme', 'artist' => 'John Carpenter', 'url' => 'https://www.youtube.com/watch?v=VafWZ4s2tHQ'],
+                ['title' => 'Tubular Bells', 'artist' => 'Mike Oldfield', 'url' => 'https://www.youtube.com/watch?v=TXvtDm820zI'],
+                ['title' => 'Psycho Theme', 'artist' => 'Bernard Herrmann', 'url' => 'https://www.youtube.com/watch?v=qMTrVGPbW1Y'],
+                ['title' => 'Ghostbusters', 'artist' => 'Ray Parker Jr.', 'url' => 'https://www.youtube.com/watch?v=Fe93CLbHjxQ']
+            ]
+        ];
+
+        foreach ($defaults as $key => $list) {
+            if (stripos($mood, $key) !== false) return $list;
+        }
+
+        // Ultimate fallback
+        return [
+            ['title' => 'As It Was', 'artist' => 'Harry Styles', 'url' => 'https://www.youtube.com/watch?v=H5v3kku4y6Q'],
+            ['title' => 'Blinding Lights', 'artist' => 'The Weeknd', 'url' => 'https://www.youtube.com/watch?v=4NRXx6U8ABQ'],
+            ['title' => 'Stay', 'artist' => 'The Kid LAROI & Justin Bieber', 'url' => 'https://www.youtube.com/watch?v=kTJczUoc26U'],
+            ['title' => 'Save Your Tears', 'artist' => 'The Weeknd', 'url' => 'https://www.youtube.com/watch?v=XXYlFuWEuKI'],
+            ['title' => 'Levitating', 'artist' => 'Dua Lipa', 'url' => 'https://www.youtube.com/watch?v=TUVcZfQe-Kw']
+        ];
     }
 
     public function upload()
