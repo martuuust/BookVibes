@@ -9,7 +9,6 @@ use App\Services\ScraperService;
 use App\Services\MoodAnalyzer;
 use App\Services\YouTubeSearchService;
 
-use App\Services\AISongGeneratorService;
 use App\Models\Book;
 
 use App\Models\Playlist;
@@ -25,9 +24,14 @@ class BookController extends Controller
             exit;
         }
         $db = \App\Core\Database::getInstance();
-        $col = $db->query("SHOW COLUMNS FROM users LIKE 'avatar_icon'")->fetch();
-        if (!$col) {
-            try { $db->query("ALTER TABLE users ADD COLUMN avatar_icon VARCHAR(50) NULL"); } catch (\Exception $e) {}
+        
+        // Optimize: Check schema only once per session
+        if (!isset($_SESSION['schema_checked'])) {
+            $col = $db->query("SHOW COLUMNS FROM users LIKE 'avatar_icon'")->fetch();
+            if (!$col) {
+                try { $db->query("ALTER TABLE users ADD COLUMN avatar_icon VARCHAR(50) NULL"); } catch (\Exception $e) {}
+            }
+            $_SESSION['schema_checked'] = true;
         }
 
         // Get User's Books
@@ -126,27 +130,6 @@ class BookController extends Controller
         
         // If playlist exists and has songs, just return it
         if ($playlist && !empty($playlist['songs'])) {
-             // Check if Pro users are missing AI songs
-             if ($accountType === 'Pro') {
-                 $hasAi = false;
-                 foreach ($playlist['songs'] as $s) {
-                     if (!empty($s['is_ai_generated'])) { $hasAi = true; break; }
-                 }
-                 if (!$hasAi) {
-                     // Generate AI songs and append
-                     $aiGen = new AISongGeneratorService();
-                     $aiSongs = $aiGen->generateSongs($book);
-                     $db = \App\Core\Database::getInstance();
-                     foreach ($aiSongs as $song) {
-                         $db->query(
-                             "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                             [$playlist['id'], $song['title'], $song['artist'], $song['url'], 1, $song['lyrics'], $song['melody_description']]
-                         );
-                     }
-                     // Refetch
-                     $playlist = Playlist::getByBookId($bookId);
-                 }
-             }
              return $this->json(['ok' => true, 'playlist' => $playlist]);
         }
         
@@ -157,7 +140,25 @@ class BookController extends Controller
             $moodData = $moodAnalyzer->analyze($book); // This calls YouTube
             
             $preferredTracks = $moodData['suggested_tracks'] ?? [];
-            $tracks = array_slice($preferredTracks, 0, $playlistLimit);
+            
+            // DEDUPLICATION:
+            // 1. Get all existing songs for this user to avoid cross-book duplicates
+            $existingUserSongs = Playlist::getAllUserSongs($userId);
+            $seenKeys = [];
+            foreach ($existingUserSongs as $s) {
+                $seenKeys[$this->normalizeForDedupe($s['title'], $s['artist'])] = true;
+            }
+
+            // 2. Filter preferredTracks
+            $tracks = [];
+            foreach ($preferredTracks as $t) {
+                $key = $this->normalizeForDedupe($t['title'] ?? '', $t['artist'] ?? '');
+                if (!isset($seenKeys[$key])) {
+                    $tracks[] = $t;
+                    $seenKeys[$key] = true;
+                }
+                if (count($tracks) >= $playlistLimit) break;
+            }
             
             // If not enough tracks, fill with YouTube search
             if (count($tracks) < $playlistLimit) {
@@ -178,15 +179,14 @@ class BookController extends Controller
                 }
                 if (empty($queries)) $queries = ['reading playlist','book theme songs'];
                 
-                $fill = $yt->searchTracks($queries, ($accountType === 'Pro') ? 30 : 10);
+                $fill = $yt->searchTracks($queries, ($accountType === 'Pro') ? 30 : 15);
                 
-                $seen = [];
-                foreach ($tracks as $x) { $seen[mb_strtolower(trim(($x['title'] ?? '').'|'.($x['artist'] ?? '')))] = true; }
                 foreach ($fill as $x) {
-                    $key = mb_strtolower(trim(($x['title'] ?? '').'|'.($x['artist'] ?? '')));
-                    if ($key === '' || isset($seen[$key])) continue;
-                    $tracks[] = $x;
-                    $seen[$key] = true;
+                    $key = $this->normalizeForDedupe($x['title'] ?? '', $x['artist'] ?? '');
+                    if (!isset($seenKeys[$key])) {
+                        $tracks[] = $x;
+                        $seenKeys[$key] = true;
+                    }
                     if (count($tracks) >= $playlistLimit) break;
                 }
             }
@@ -195,25 +195,13 @@ class BookController extends Controller
             if (count($tracks) < 3) {
                  $fallbacks = $this->getFallbackTracks($book['mood'] ?? '');
                  foreach ($fallbacks as $fb) {
-                     // Check for duplicates
-                     $key = mb_strtolower(trim(($fb['title'] ?? '').'|'.($fb['artist'] ?? '')));
-                     $isDup = false;
-                     foreach ($tracks as $existing) {
-                         $exKey = mb_strtolower(trim(($existing['title'] ?? '').'|'.($existing['artist'] ?? '')));
-                         if ($key === $exKey) { $isDup = true; break; }
-                     }
-                     if (!$isDup) {
+                     $key = $this->normalizeForDedupe($fb['title'] ?? '', $fb['artist'] ?? '');
+                     if (!isset($seenKeys[$key])) {
                         $tracks[] = $fb;
+                        $seenKeys[$key] = true;
                      }
                      if (count($tracks) >= $playlistLimit) break;
                  }
-            }
-            
-            // Generate AI Songs if Pro
-            if ($accountType === 'Pro') {
-                $aiGen = new AISongGeneratorService();
-                $aiSongs = $aiGen->generateSongs($book);
-                $tracks = array_merge($aiSongs, $tracks);
             }
             
             $playlistData = ['mood' => $book['mood'], 'suggested_tracks' => $tracks];
@@ -236,12 +224,9 @@ class BookController extends Controller
                  if ($playlist) {
                      $playlistId = $playlist['id'];
                      foreach ($tracks as $track) {
-                        $isAi = isset($track['is_ai_generated']) ? 1 : 0;
-                        $lyrics = $track['lyrics'] ?? null;
-                        $melody = $track['melody_description'] ?? null;
                         $db->query(
-                            "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            [$playlistId, $track['title'], $track['artist'], $track['url'], $isAi, $lyrics, $melody]
+                            "INSERT INTO songs (playlist_id, title, artist, url) VALUES (?, ?, ?, ?)",
+                            [$playlistId, $track['title'], $track['artist'], $track['url']]
                         );
                      }
                  } else {
@@ -285,19 +270,35 @@ class BookController extends Controller
         $ub = $db->query("SELECT regen_count FROM user_books WHERE user_id = ? AND book_id = ?", [$userId, $bookId])->fetch();
         $currentCount = $ub['regen_count'] ?? 0;
 
-        // Enforce Limit for Basic Users
-        if (!$isPro && $currentCount >= 1) {
-             return $this->json(['ok' => false, 'require_upgrade' => true, 'error' => 'Has alcanzado el límite de regeneración. Pásate a Pro para regenerar ilimitadamente.']);
-        }
-
         // Increment Count
         $db->query("UPDATE user_books SET regen_count = regen_count + 1 WHERE user_id = ? AND book_id = ?", [$userId, $bookId]);
 
-        // Delete existing playlist
-        Playlist::deleteByBookId($bookId);
+        // Clear existing songs but keep playlist record (to preserve spotify_playlist_id)
+        Playlist::clearSongs($bookId);
 
         // Forward to generate new playlist
         return $this->apiGeneratePlaylist($request);
+    }
+
+    private function normalizeForDedupe($title, $artist)
+    {
+        // Combine
+        $full = ($title ?? '') . ' ' . ($artist ?? '');
+        // Lowercase
+        $full = mb_strtolower($full);
+        // Remove common garbage in brackets/parentheses
+        $full = preg_replace('/[\(\[][^\)\]]*(lyrics|video|official|audio|live|hd|hq|remaster|mix)[\)\]]/', '', $full);
+        // Remove keywords if they are not in brackets
+        $full = str_replace(['lyrics', 'official video', 'official audio', 'music video', 'full audio'], '', $full);
+        // Remove non-alphanumeric (keep spaces)
+        $full = preg_replace('/[^a-z0-9\s]/', '', $full);
+        // Split into words
+        $words = explode(' ', $full);
+        // Remove empty
+        $words = array_filter($words);
+        // Sort words to handle "Artist Title" vs "Title Artist"
+        sort($words);
+        return implode(' ', $words);
     }
 
     private function getFallbackTracks(string $mood): array
@@ -426,16 +427,6 @@ class BookController extends Controller
 
     public function show(Request $request) 
     {
-        // Extract ID from URL (naive routing, assuming /books/{id} support in router or extracting from path)
-        // Since my Router is simple, I might need to adjust it or grab params differently.
-        // For now, let's assume query param ?id=X if router doesn't support wildcards yet,
-        // OR implement simple wildcard support. I'll use query param key for simplicity if logic fails,
-        // but let's try to parse path or use Router param injection.
-        
-        // My Router implementation in step 29 didn't have regex params.
-        // I will use $_GET['id'] for simplicity given the time constraints, 
-        // OR I can parse the URI here.
-        
         $body = $request->getBody();
         $id = $body['id'] ?? null; 
 
@@ -542,10 +533,11 @@ class BookController extends Controller
         $state = bin2hex(random_bytes(8)) . '|book:' . $bookId;
         $_SESSION['spotify_oauth_state'] = $state;
         $url = 'https://accounts.spotify.com/authorize?client_id=' . urlencode($clientId) .
-               '&response_type=code&redirect_uri=' . urlencode($redirectUri) .
-               '&scope=' . urlencode($scope) .
-               '&state=' . urlencode($state) .
-               '&show_dialog=true';
+            '&response_type=code&redirect_uri=' . urlencode($redirectUri) .
+            '&scope=' . urlencode($scope) .
+            '&state=' . urlencode($state) .
+            '&show_dialog=true';
+
         header('Location: ' . $url);
         exit;
     }
@@ -553,9 +545,8 @@ class BookController extends Controller
     public function spotifyCallback(Request $request)
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
-        $body = $request->getBody();
-        $code = $body['code'] ?? '';
-        $state = $body['state'] ?? '';
+        $code = $_GET['code'] ?? '';
+        $state = $_GET['state'] ?? '';
         $expected = $_SESSION['spotify_oauth_state'] ?? '';
         $clientId = getenv('SPOTIFY_CLIENT_ID') ?: '';
         $clientSecret = getenv('SPOTIFY_CLIENT_SECRET') ?: '';
@@ -565,10 +556,15 @@ class BookController extends Controller
             exit;
         }
         $auth = base64_encode($clientId . ':' . $clientSecret);
+        
+        // FIX: Ensure we use the exact redirect URI from env, preventing mismatch
+        // If we are behind Cloudflare (https), force the env value
+        $finalRedirectUri = $redirectUri; 
+
         $data = http_build_query([
             'grant_type' => 'authorization_code',
             'code' => $code,
-            'redirect_uri' => $redirectUri
+            'redirect_uri' => $finalRedirectUri
         ]);
         $ctx = stream_context_create([
             'http' => [
@@ -606,8 +602,7 @@ class BookController extends Controller
             header('Location: /login');
             exit;
         }
-        $body = $request->getBody();
-        $bookId = $body['book_id'] ?? '';
+        $bookId = $_GET['book_id'] ?? '';
         if (!is_numeric($bookId)) {
             header('Location: /dashboard');
             exit;
@@ -628,40 +623,180 @@ class BookController extends Controller
             header('Location: /spotify/connect?book_id=' . $bookId);
             exit;
         }
-        $name = $book['title'] ?? ('Libro ' . $bookId);
-        $desc = 'Playlist generada por BookVibes para "' . $name . '"';
-        $created = $this->spotifyApiPost('https://api.spotify.com/v1/users/' . urlencode($user['id']) . '/playlists', $token, [
-            'name' => $name,
-            'description' => $desc,
-            'public' => false
-        ]);
-        if (!$created || !isset($created['id'])) {
-            header('Location: /books/show?id=' . $bookId);
-            exit;
+
+        $db = \App\Core\Database::getInstance();
+        // Ensure spotify_playlist_id column exists
+        try {
+             $col = $db->query("SHOW COLUMNS FROM playlists LIKE 'spotify_playlist_id'")->fetch();
+             if (!$col) {
+                 $db->query("ALTER TABLE playlists ADD COLUMN spotify_playlist_id VARCHAR(100) NULL");
+                 // Refresh playlist data
+                 $playlist = Playlist::getByBookId($bookId);
+             }
+        } catch (\Exception $e) {}
+
+        $targetPlaylistId = $playlist['spotify_playlist_id'] ?? null;
+        $playlistUrl = '';
+
+        // Check if existing playlist is valid
+        if ($targetPlaylistId) {
+             $check = $this->spotifyApiGet('https://api.spotify.com/v1/playlists/' . $targetPlaylistId, $token);
+             if (!$check || isset($check['error'])) {
+                 $targetPlaylistId = null; // Invalid/Deleted, create new
+             } else {
+                 $playlistUrl = $check['external_urls']['spotify'] ?? ('https://open.spotify.com/playlist/' . $targetPlaylistId);
+             }
         }
+
+        // Create new if needed
+        if (!$targetPlaylistId) {
+            $name = $book['title'] ?? ('Libro ' . $bookId);
+            $desc = 'Playlist generada por BookVibes para "' . $name . '"';
+            $created = $this->spotifyApiPost('https://api.spotify.com/v1/users/' . urlencode($user['id']) . '/playlists', $token, [
+                'name' => $name,
+                'description' => $desc,
+                'public' => false
+            ]);
+            if (!$created || !isset($created['id'])) {
+                header('Location: /books/show?id=' . $bookId);
+                exit;
+            }
+            $targetPlaylistId = $created['id'];
+            $playlistUrl = $created['external_urls']['spotify'] ?? ('https://open.spotify.com/playlist/' . $targetPlaylistId);
+            
+            // Save ID
+            $db->query("UPDATE playlists SET spotify_playlist_id = ? WHERE id = ?", [$targetPlaylistId, $playlist['id']]);
+        }
+
         $uris = [];
         $seen = [];
         foreach ($playlist['songs'] as $s) {
-            $title = trim($s['title'] ?? '');
-            $artist = trim($s['artist'] ?? '');
+            $rawTitle = $s['title'] ?? '';
+            $rawArtist = $s['artist'] ?? '';
+            
+            // 1. Clean strings
+            $title = $this->cleanForSpotify($rawTitle);
+            $artist = $this->cleanForSpotify($rawArtist);
+            
             if ($title === '') continue;
-            $q1 = 'track:"' . $title . '" artist:"' . $artist . '"';
-            $q2 = trim($title . ' ' . $artist);
-            $uri = $this->spotifyFindTrackUri($token, $q1);
-            if (!$uri) $uri = $this->spotifyFindTrackUri($token, $q2);
-            if ($uri && !isset($seen[$uri])) {
+
+            $uri = null;
+
+            // STRATEGY 1: Parse "Artist - Title" from the title field (Most common for YouTube results)
+            // Example: "Ariana Grande - Beauty and the Beast" -> Artist: Ariana Grande, Track: Beauty and the Beast
+            if (strpos($rawTitle, '-') !== false) {
+                $parts = explode('-', $rawTitle, 2);
+                $extractedArtist = $this->cleanForSpotify($parts[0]);
+                $extractedTitle = $this->cleanForSpotify($parts[1]);
+                
+                if (!empty($extractedArtist) && !empty($extractedTitle)) {
+                    // Try exact match with extracted parts
+                    $q = 'track:"' . $extractedTitle . '" artist:"' . $extractedArtist . '"';
+                    $uri = $this->spotifyFindTrackUri($token, $q);
+                    
+                    // Try looser match
+                    if (!$uri) {
+                         $q = trim($extractedTitle . ' ' . $extractedArtist);
+                         $uri = $this->spotifyFindTrackUri($token, $q);
+                    }
+                }
+            }
+
+            // STRATEGY 2: Use DB Artist (if Strategy 1 failed or no hyphen)
+            if (!$uri) {
+                $searchArtist = $artist;
+                
+                // If the artist looks like a channel, try to clean it instead of discarding it
+                // e.g. "Queen Official" -> "Queen", "DisneyMusicVEVO" -> "DisneyMusic"
+                if ($this->isLikelyChannelName($searchArtist)) {
+                     $searchArtist = $this->cleanChannelName($searchArtist);
+                }
+
+                if (!empty($searchArtist)) {
+                    // Try strict first
+                    $q = 'track:"' . $title . '" artist:"' . $searchArtist . '"';
+                    $uri = $this->spotifyFindTrackUri($token, $q);
+                    
+                    // Try loose (Title + Artist string)
+                    if (!$uri) {
+                        $q = trim($title . ' ' . $searchArtist);
+                        $uri = $this->spotifyFindTrackUri($token, $q);
+                    }
+                }
+            }
+            
+            // STRATEGY 3: REMOVED "Title Only" search.
+            // If we don't have a valid artist (extracted or from DB), we do NOT add the song.
+            // This prevents "random" songs from being added when the title is generic.
+
+            if ($uri && !isset($seen[$uri]) && !isset($existingUris[$uri])) {
                 $uris[] = $uri;
                 $seen[$uri] = true;
             }
-            if (count($uris) >= 30) break;
+            if (count($uris) >= 100) break;
         }
         if (!empty($uris)) {
-            $this->spotifyApiPost('https://api.spotify.com/v1/playlists/' . urlencode($created['id']) . '/tracks', $token, [
+            // Use POST to append tracks (as requested by user to allow growing playlist on regeneration)
+            $this->spotifyApiPost('https://api.spotify.com/v1/playlists/' . urlencode($targetPlaylistId) . '/tracks', $token, [
                 'uris' => $uris
             ]);
         }
-        header('Location: https://open.spotify.com/playlist/' . $created['id']);
+        header('Location: ' . $playlistUrl);
         exit;
+    }
+
+    private function cleanForSpotify(string $text): string
+    {
+        // Remove content in parentheses or brackets often found in YouTube titles
+        // e.g. (Official Video), [Lyrics], (Audio), (Live), ft. Artist
+        $text = preg_replace('/\s*[\(\[][^\)\]]*(video|official|audio|lyrics|hq|hd|4k|live|remaster|mix)[\)\]]/i', '', $text);
+        
+        // Remove "ft." or "feat." and everything after it (often complicates artist match if format differs)
+        // Or better, just remove the "ft. X" part to match main song
+        $text = preg_replace('/\s(ft\.|feat\.|featuring)\s.*/i', '', $text);
+        
+        // Remove common separators like " - " if it looks like "Artist - Title" (though we hope we have them separated)
+        // But here we are cleaning individual fields.
+
+        // Remove leading @ (e.g. @sza)
+        $text = ltrim($text, '@');
+        
+        return trim($text);
+    }
+
+    private function cleanChannelName(string $text): string
+    {
+        // Try to remove "VEVO", "Official", "Music", "Channel", "Lyrics"
+        // But keep the main part.
+        // e.g. "Queen Official" -> "Queen"
+        // "DisneyMusicVEVO" -> "DisneyMusic" (or "Disney")
+        
+        $clean = $text;
+        $patterns = [
+            '/vevo/i',
+            '/official/i',
+            '/channel/i',
+            '/lyrics/i',
+            '/video/i',
+            '/audio/i'
+        ];
+        $clean = preg_replace($patterns, '', $clean);
+        
+        // Remove "Music" only if it's at the end or separate word, to avoid breaking "Musical"
+        $clean = preg_replace('/\bmusic\b/i', '', $clean);
+        
+        return trim($clean);
+    }
+
+    private function isLikelyChannelName(string $text): bool
+    {
+        $lower = strtolower($text);
+        // Common patterns for YouTube channels that aren't artists
+        if (strpos($lower, 'vevo') !== false) return true;
+        if (strpos($lower, 'official') !== false) return true;
+        if (strpos($lower, 'lyrics') !== false) return true;
+        if (strpos($lower, 'music') !== false && strpos($lower, ' ') !== false) return true; // e.g. "Dan Music"
+        return false;
     }
 
     private function spotifyApiGet(string $url, string $token): ?array
@@ -682,6 +817,20 @@ class BookController extends Controller
         $ctx = stream_context_create([
             'http' => [
                 'method' => 'POST',
+                'header' => "Authorization: Bearer " . $token . "\r\nContent-Type: application/json\r\nAccept: application/json\r\n",
+                'content' => json_encode($data),
+                'timeout' => 10
+            ]
+        ]);
+        $resp = @file_get_contents($url, false, $ctx);
+        return $resp ? json_decode($resp, true) : null;
+    }
+
+    private function spotifyApiPut(string $url, string $token, array $data): ?array
+    {
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'PUT',
                 'header' => "Authorization: Bearer " . $token . "\r\nContent-Type: application/json\r\nAccept: application/json\r\n",
                 'content' => json_encode($data),
                 'timeout' => 10

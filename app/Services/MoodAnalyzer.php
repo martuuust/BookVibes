@@ -32,12 +32,12 @@ class MoodAnalyzer
         ];
 
         $moodSpecificPlaylistKeywords = [
-            'Romántico' => ['love songs hits', 'romantic pop songs', 'emotional ballads lyrics', 'popular love songs', 'wedding songs hits'],
-            'Intriga y Suspenso' => ['dark pop hits', 'mystery vibe songs', 'suspenseful songs with lyrics', 'dark mood songs', 'intense pop songs'],
-            'Épico y Aventurero' => ['epic pop rock', 'adventure songs with lyrics', 'powerful anthems', 'heroic songs with vocals', 'motivational rock hits'],
-            'Fantasía' => ['ethereal pop songs', 'fantasy vibe songs with lyrics', 'magical pop hits', 'dreamy songs vocals', 'mystical songs'],
-            'Melancólico' => ['sad pop hits', 'emotional songs with lyrics', 'breakup songs', 'sad ballads', 'depressing songs hits'],
-            'Neutral' => ['pop hits', 'top hits', 'trending songs', 'viral songs', 'radio hits']
+            'Romántico' => ['love songs lyrics', 'romantic pop audio', 'emotional ballads lyrics', 'popular love songs lyrics', 'wedding songs audio'],
+            'Intriga y Suspenso' => ['dark pop lyrics', 'mystery vibe audio', 'suspenseful songs lyrics', 'dark mood audio', 'intense pop lyrics'],
+            'Épico y Aventurero' => ['epic pop rock lyrics', 'adventure songs lyrics', 'powerful anthems audio', 'heroic songs lyrics', 'motivational rock lyrics'],
+            'Fantasía' => ['ethereal pop lyrics', 'fantasy vibe lyrics', 'magical pop audio', 'dreamy songs lyrics', 'mystical songs audio'],
+            'Melancólico' => ['sad pop lyrics', 'emotional songs lyrics', 'breakup songs audio', 'sad ballads lyrics', 'depressing songs lyrics'],
+            'Neutral' => ['pop hits lyrics', 'top hits audio', 'trending songs lyrics', 'viral songs audio', 'radio hits lyrics']
         ];
 
         $mood = 'Neutral';
@@ -63,8 +63,8 @@ class MoodAnalyzer
         $selectedArtists = array_slice($artists, 0, 8); // Select 8 random artists
 
         foreach ($selectedArtists as $artist) {
+            $queries[] = "$artist official video";
             $queries[] = "$artist best songs";
-            $queries[] = "$artist hits";
             $queries[] = "$artist lyrics";
             if (!empty($mood) && $mood !== 'Neutral') {
                  $queries[] = "$artist $mood songs";

@@ -19,13 +19,9 @@ class Playlist
 
         // Insert Songs
         foreach ($data['suggested_tracks'] as $track) {
-            $isAi = isset($track['is_ai_generated']) ? 1 : 0;
-            $lyrics = $track['lyrics'] ?? null;
-            $melody = $track['melody_description'] ?? null;
-            
             $db->query(
-                "INSERT INTO songs (playlist_id, title, artist, url, is_ai_generated, lyrics, melody_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [$playlistId, $track['title'], $track['artist'], $track['url'], $isAi, $lyrics, $melody]
+                "INSERT INTO songs (playlist_id, title, artist, url) VALUES (?, ?, ?, ?)",
+                [$playlistId, $track['title'], $track['artist'], $track['url']]
             );
         }
         
@@ -38,8 +34,8 @@ class Playlist
         $playlist = $db->query("SELECT * FROM playlists WHERE book_id = ?", [$bookId])->fetch();
         
         if ($playlist) {
-            // Sort by is_ai_generated DESC so AI songs appear first
-            $songs = $db->query("SELECT * FROM songs WHERE playlist_id = ? ORDER BY is_ai_generated DESC, id ASC", [$playlist['id']])->fetchAll();
+            // Sort by id ASC, excluding legacy AI songs
+            $songs = $db->query("SELECT * FROM songs WHERE playlist_id = ? AND (is_ai_generated = 0 OR is_ai_generated IS NULL) ORDER BY id ASC", [$playlist['id']])->fetchAll();
             $playlist['songs'] = $songs;
         }
         
@@ -50,12 +46,37 @@ class Playlist
     {
         $db = Database::getInstance();
         $playlist = $db->query("SELECT id FROM playlists WHERE book_id = ?", [$bookId])->fetch();
-        
+
         if ($playlist) {
             $db->query("DELETE FROM songs WHERE playlist_id = ?", [$playlist['id']]);
             $db->query("DELETE FROM playlists WHERE id = ?", [$playlist['id']]);
             return true;
         }
         return false;
+    }
+
+    public static function clearSongs($bookId)
+    {
+        $db = Database::getInstance();
+        $playlist = $db->query("SELECT id FROM playlists WHERE book_id = ?", [$bookId])->fetch();
+
+        if ($playlist) {
+            $db->query("DELETE FROM songs WHERE playlist_id = ?", [$playlist['id']]);
+            return true;
+        }
+        return false;
+    }
+
+    public static function getAllUserSongs($userId)
+    {
+        $db = Database::getInstance();
+        return $db->query(
+            "SELECT s.title, s.artist 
+             FROM songs s
+             JOIN playlists p ON s.playlist_id = p.id
+             JOIN user_books ub ON p.book_id = ub.book_id
+             WHERE ub.user_id = ?",
+            [$userId]
+        )->fetchAll();
     }
 }

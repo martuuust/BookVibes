@@ -14,6 +14,16 @@ class YouTubeSearchService
         
         // Limit queries to avoid overload
         $queries = array_slice($queries, 0, 6);
+        
+        // Enforce "lyrics" in queries to find embeddable versions
+        $enhancedQueries = [];
+        foreach ($queries as $q) {
+            $enhancedQueries[] = $q;
+            if (!str_contains(strtolower($q), 'lyrics') && !str_contains(strtolower($q), 'audio')) {
+                $enhancedQueries[] = $q . ' lyrics';
+            }
+        }
+        $queries = array_unique($enhancedQueries);
 
         $seen = [];
         $candidates = [];
@@ -166,10 +176,10 @@ class YouTubeSearchService
     {
         $t = mb_strtolower($title);
         $bad = [
-            'cover', 'karaoke', 'reaction', 'remix', 'sped up', 'slowed', '8d', 'nightcore',
+            'reaction', 'remix', 'sped up', 'slowed', 'nightcore',
             'live', 'tribute', 'fan made', 'mashup', 'mix', 'compilation',
-            'full album', 'playlist', 'audio only', 'teaser', 'snippet',
-            'instrumental', 'backing track', 'no vocals', 'tutorial', 'lesson',
+            'teaser', 'snippet', 'preview',
+            'tutorial', 'lesson',
             '1 hour', '10 hours', 'loop', 'ambient', 'study music', 'lofi',
             'soundtrack score', 'original score', 'ost full', 'theme extended'
         ];
@@ -185,17 +195,19 @@ class YouTubeSearchService
         $artist = mb_strtolower($t['artist'] ?? '');
         $score = 0;
         
-        // Positive signals for real songs
-        if (str_contains($title, 'official video')) $score += 10;
-        if (str_contains($title, 'music video')) $score += 8;
-        if (str_contains($title, 'lyrics')) $score += 7;
-        if (str_contains($title, 'official audio')) $score += 5;
-        if (str_contains($title, 'visualizer')) $score += 2;
+        // Prioritize Official Content (Since we are listing, not embedding)
+        if (str_contains($title, 'official video')) $score += 40;
+        if (str_contains($title, 'video oficial')) $score += 40;
+        if (str_contains($title, 'music video')) $score += 30;
         
-        // Artist verification
-        if (str_contains($artist, 'vevo')) $score += 8;
-        if (str_contains($artist, 'topic')) $score += 4;
-        if (str_contains($artist, 'official') || str_contains($artist, 'records') || str_contains($artist, 'music')) $score += 3;
+        if (str_contains($artist, 'vevo')) $score += 20; 
+        if (str_contains($artist, 'topic')) $score += 10;
+        
+        // Still value lyrics/audio as good fallbacks
+        if (str_contains($title, 'official audio')) $score += 20;
+        if (str_contains($title, 'lyrics')) $score += 10;
+        
+        if (str_contains($artist, 'official') || str_contains($artist, 'records') || str_contains($artist, 'music')) $score += 5;
         if (strlen($artist) > 0) $score += 1;
         
         // Preferred mainstream artists boost
@@ -207,14 +219,10 @@ class YouTubeSearchService
         }
         
         // Penalize unwanted formats
-        if (str_contains($title, 'top ') || str_contains($title, 'playlist') || str_contains($title, 'full album')) $score -= 10;
+        if (str_contains($title, 'top ') || str_contains($title, 'playlist') || str_contains($title, 'full album')) $score -= 20;
         if (str_contains($title, 'instrumental') || str_contains($title, 'karaoke')) $score -= 20;
-        if (str_contains($title, 'live') || str_contains($title, 'concert') || str_contains($title, 'acoustic version')) $score -= 5;
+        if (str_contains($title, 'reaction') || str_contains($title, 'review')) $score -= 50;
         if (str_contains($title, 'behind the scenes') || str_contains($title, 'making of')) $score -= 20;
-        
-        // Penalize age slightly, but good songs are timeless
-        $years = (int)($t['years_ago'] ?? 0);
-        if ($years >= 20) $score -= 2; // Classic hits are fine, just slight penalty
         
         return $score;
     }

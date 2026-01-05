@@ -417,6 +417,14 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(5px); }
+        }
+        .animate-bounce {
+            animation: bounce 2s infinite;
+        }
 
         /* Animation for playlist expansion */
         #full-playlist {
@@ -487,20 +495,6 @@
             0%, 100% { opacity: 0.3; transform: scale(0.8); }
             50% { opacity: 1; transform: scale(1.2); }
         }
-        .btn-listen {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 0.25rem 1rem;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-        }
-        .btn-listen:hover {
-            background: var(--primary-gradient);
-            border-color: transparent;
-            color: white;
-        }
         
         .btn-primary-glow {
             background: var(--primary-gradient);
@@ -534,93 +528,36 @@
             color: white !important;
         }
         body:not(.dark-mode) .btn-outline-light {
-    background-color: #dc3545 !important;
-    color: white !important;
-    border-color: transparent !important;
-}
-body:not(.dark-mode) .btn-outline-light:hover {
-    background-color: #c82333 !important;
-    color: white !important;
-}
-        .ai-track {
-            background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
-            border-left: 2px solid #6366f1;
+            background-color: #dc3545 !important;
+            color: white !important;
+            border-color: transparent !important;
         }
-        
-        /* Player Bar Styles */
-        .player-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 90px;
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(12px);
-            border-top: 1px solid rgba(255,255,255,0.1);
-            z-index: 9999;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-        }
-        .player-bar.active {
-            transform: translateY(0);
-        }
-        .player-art {
-            width: 42px;
-            height: 42px;
-            min-width: 42px;
-            min-height: 42px;
-            flex: 0 0 42px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
-            aspect-ratio: 1 / 1;
-        }
-        .ai-visualizer {
-            position: absolute;
-            top: -2px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            display: flex;
-            align-items: flex-end;
-            gap: 2px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .ai-visualizer.active {
-            opacity: 1;
-        }
-        .ai-visualizer .bar {
-            flex: 1;
-            background: #a855f7;
-            height: 100%;
-            animation: visualize 0.8s ease-in-out infinite alternate;
-            transform-origin: bottom;
-        }
-        .ai-visualizer .bar:nth-child(even) { animation-duration: 1.1s; animation-delay: 0.2s; }
-        .ai-visualizer .bar:nth-child(3n) { animation-duration: 1.3s; animation-delay: 0.4s; }
-        @keyframes visualize {
-            0% { transform: scaleY(0.2); opacity: 0.5; }
-            100% { transform: scaleY(1); opacity: 1; }
+        body:not(.dark-mode) .btn-outline-light:hover {
+            background-color: #c82333 !important;
+            color: white !important;
         }
     </style>
 </head>
 <body>
     <div id="stars-container"></div>
+    
+    <!-- Error Toast Container -->
+    <div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 11000">
+        <div id="error-toast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="error-toast-message">
+                    Error message here.
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
 <?php 
 $userName = $user_name ?? $_SESSION['user_name'] ?? 'Lector';
 $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 ?>
 
-<!-- Old Navbar -->
 <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light sticky-top navbar-light-mode" style="backdrop-filter: blur(10px);">
   <div class="container-fluid px-4 px-md-5">
     <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard">
@@ -733,132 +670,81 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 
                 <div class="p-0" id="playlist-container">
                     <?php if($playlist && !empty($playlist['songs'])): ?>
-                        <!-- Vinyl Trigger -->
-                        <div class="visual-album-container text-center" onclick="document.getElementById('full-playlist').classList.toggle('show');">
+                        <!-- Vinyl Header (Visual Only) -->
+                        <div class="visual-album-container text-center mb-0" onclick="togglePlaylist()">
                             <div class="vinyl-record">
                                 <div class="vinyl-label">
                                     <?= htmlspecialchars(substr($book['title'], 0, 10)) ?>
                                 </div>
                             </div>
                             <h6 class="mt-4 mb-1 fw-bold text-white">Playlist Generada</h6>
-                            <p class="small text-white-50 mb-0"><?= count($playlist['songs']) ?> Pistas • Tocar para ver</p>
+                            <p class="small text-white-50 mb-0"><?= count($playlist['songs']) ?> Pistas</p>
+                            <i class="bi bi-chevron-down text-white-50 mt-2 d-block animate-bounce"></i>
                         </div>
 
-                        <!-- Playlist Items (Animated) -->
+                        <!-- Playlist Items (Collapsible) -->
                         <div id="full-playlist">
-                            <div class="list-group list-group-flush">
+                            <div class="list-group list-group-flush border-start border-end border-light border-opacity-10">
                                 <?php 
                                     $limit = 7;
                                     $i = 0;
-                                    $aiCount = 0;
                                     foreach($playlist['songs'] as $song): 
                                         if($i++ >= $limit) break; 
-                                        $isAi = !empty($song['is_ai_generated']);
-                                        $variation = 0;
-                                        if ($isAi) {
-                                            $variation = $aiCount % 2;
-                                            $aiCount++;
-                                        }
                                 ?>
-                                    <div class="playlist-track <?= $isAi ? 'ai-track' : '' ?>">
+                                    <div class="playlist-track" id="song-row-<?= $i - 1 ?>">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="me-3 overflow-hidden">
                                                 <div class="fw-semibold text-truncate">
-                                                    <?php if($isAi): ?>
-                                                        <span class="badge bg-primary me-1" style="font-size: 0.6em; vertical-align: middle;">AI ORIGINAL</span>
-                                                    <?php endif; ?>
                                                     <?= htmlspecialchars($song['title']) ?>
                                                 </div>
                                                 <small class="text-muted text-truncate d-block"><?= htmlspecialchars($song['artist']) ?></small>
-                                                <?php if($isAi): ?>
-                                                    <small class="text-info d-block" style="font-size: 0.75em;"><?= htmlspecialchars($song['melody_description'] ?? '') ?></small>
-                                                <?php endif; ?>
                                             </div>
-                                            
-                                            <?php if($isAi): ?>
-                                                 <button type="button" class="btn-listen" onclick='playSongAtIndex(<?= $i - 1 ?>)'>
-                                                    <i class="bi bi-play-fill"></i>
-                                                </button>
-                                            <?php else: ?>
-                                                <button type="button" class="btn-listen" onclick="playSongAtIndex(<?= $i - 1 ?>)">
-                                                    <i class="bi bi-play-fill"></i>
-                                                </button>
-                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                    
-                                    <?php if($isAi): ?>
-                                    <!-- Modal for AI Song -->
-                                    <div class="modal fade" id="songModal<?= $song['id'] ?>" tabindex="-1" aria-hidden="true">
-                                      <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content" style="background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border);">
-                                          <div class="modal-header border-bottom border-secondary border-opacity-25">
-                                            <h5 class="modal-title">
-                                                <i class="bi bi-stars text-warning me-2"></i><?= htmlspecialchars($song['title']) ?>
-                                            </h5>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                          </div>
-                                          <div class="modal-body">
-                                            <h6 class="text-muted mb-3">by BookVibes AI</h6>
-                                            <div class="p-3 rounded mb-3" style="background: rgba(0,0,0,0.2);">
-                                                <small class="text-uppercase text-secondary fw-bold">Melodía</small>
-                                                <p class="mb-0 fst-italic"><?= htmlspecialchars($song['melody_description'] ?? '') ?></p>
-                                            </div>
-                                            <div class="p-3 rounded" style="background: rgba(0,0,0,0.2);">
-                                                <small class="text-uppercase text-secondary fw-bold mb-2 d-block">Letra Generada</small>
-                                                <pre style="white-space: pre-wrap; font-family: inherit; color: var(--text-main);"><?= htmlspecialchars($song['lyrics'] ?? '') ?></pre>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <?php endif; ?>
-
                                 <?php endforeach; ?>
                             </div>
                             
                             <!-- Pro/Upgrade Actions -->
-                            <div class="p-3 bg-dark bg-opacity-25 border-top border-secondary border-opacity-10">
-                                <?php if(!$isPro && count($playlist['songs']) > 7): ?>
-                                    <div class="text-center py-2">
-                                        <small class="text-muted d-block mb-2">Mostrando 7 de <?= count($playlist['songs']) ?> canciones</small>
-                                        <a href="/pro/upgrade?book_id=<?= urlencode($book['id']) ?>" class="btn btn-sm btn-primary-glow w-100">
-                                            <i class="bi bi-unlock-fill me-1"></i> Desbloquear Todo (Pro)
-                                        </a>
-                                    </div>
-                                <?php elseif(!$isPro): ?>
-                                    <div class="d-grid mt-2">
-                                        <a href="/pro/upgrade?book_id=<?= urlencode($book['id']) ?>&return=<?= urlencode('/books/show?id=' . $book['id']) ?>" class="btn btn-outline-light btn-sm">
-                                            <i class="bi bi-stars me-1"></i> Mejorar Recomendaciones
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
-
+                            <div class="p-3 bg-dark bg-opacity-25 border border-top-0 border-light border-opacity-10" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
                                 <?php if(!empty($playlist['songs'])): ?>
-                                    <div class="d-grid mt-3">
-                                        <a href="/spotify/create?book_id=<?= urlencode($book['id']) ?>" class="btn btn-spotify btn-sm">
-                                            <i class="bi bi-spotify me-2"></i>Guardar en Spotify
-                                        </a>
-                                    </div>
-                                    <div class="d-grid mt-2 position-relative">
-                                        <button onclick="toggleRegenerateConfirm()" class="btn btn-outline-warning btn-sm">
-                                            <i class="bi bi-arrow-repeat me-2"></i>Regenerar Playlist
-                                        </button>
-                                        <!-- Custom Popover -->
-                                        <div id="regenerate-confirm-popover" class="position-absolute bg-white shadow-lg rounded p-3 d-none fade-in-up" style="bottom: 110%; left: 50%; transform: translateX(-50%); width: 220px; z-index: 1050;">
-                                            <div class="text-dark text-center">
-                                                <h6 class="fw-bold mb-1">¿Regenerar?</h6>
-                                                <p class="small mb-2" style="font-size: 0.8rem; line-height: 1.2;">Se perderán las canciones actuales.</p>
-                                                <div class="d-flex justify-content-center gap-2">
-                                                    <button onclick="toggleRegenerateConfirm()" class="btn btn-xs btn-outline-secondary py-1 px-2" style="font-size: 0.75rem;">Cancelar</button>
-                                                    <button onclick="executeRegeneratePlaylist()" class="btn btn-xs btn-danger py-1 px-2" style="font-size: 0.75rem;">Sí, Regenerar</button>
+                                    <div class="d-grid gap-2 mt-2">
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <a href="/spotify/create?book_id=<?= urlencode($book['id']) ?>" class="btn btn-spotify btn-sm w-100 h-100 d-flex align-items-center justify-content-center py-2">
+                                                    <i class="bi bi-spotify me-2"></i>Spotify
+                                                </a>
+                                            </div>
+                                            <div class="col-6 position-relative">
+                                                <button onclick="toggleRegenerateConfirm()" class="btn btn-outline-warning btn-sm w-100 h-100 d-flex align-items-center justify-content-center py-2">
+                                                    <i class="bi bi-arrow-repeat me-2"></i>Regenerar
+                                                </button>
+                                                <!-- Custom Popover -->
+                                                <div id="regenerate-confirm-popover" class="position-absolute bg-white shadow-lg rounded p-3 d-none fade-in-up" style="bottom: 110%; left: 50%; transform: translateX(-50%); width: 200px; z-index: 1050;">
+                                                    <div class="text-dark text-center">
+                                                        <p class="small mb-2 fw-bold" style="font-size: 0.8rem; line-height: 1.2;">¿Regenerar Playlist?</p>
+                                                        <div class="d-flex justify-content-center gap-2">
+                                                            <button onclick="toggleRegenerateConfirm()" class="btn btn-xs btn-outline-secondary py-1 px-2" style="font-size: 0.75rem;">No</button>
+                                                            <button onclick="executeRegeneratePlaylist()" class="btn btn-xs btn-danger py-1 px-2" style="font-size: 0.75rem;">Sí</button>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Arrow -->
+                                                    <div class="position-absolute bg-white" style="bottom: -5px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px;"></div>
                                                 </div>
                                             </div>
-                                            <!-- Arrow -->
-                                            <div class="position-absolute bg-white" style="bottom: -5px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px;"></div>
                                         </div>
                                     </div>
                                 <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php elseif($playlist): ?>
+                        <div class="p-5 text-center">
+                            <i class="bi bi-music-note-beamed fs-1 text-white-50 mb-3"></i>
+                            <h6 class="text-white">No se encontraron canciones.</h6>
+                            <p class="text-white-50 small">Las canciones generadas por IA han sido ocultadas.</p>
+                            <div class="d-grid mt-3 col-8 mx-auto">
+                                <button onclick="executeRegeneratePlaylist()" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-arrow-repeat me-2"></i>Regenerar Playlist
+                                </button>
                             </div>
                         </div>
                     <?php else: ?>
@@ -912,7 +798,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     }
 
     function loadPlaylist() {
-        fetch('/books/api-generate-playlist', {
+        fetch('/books/generate-playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ book_id: BOOK_ID })
@@ -936,6 +822,41 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         const popover = document.getElementById('regenerate-confirm-popover');
         if (popover) {
             popover.classList.toggle('d-none');
+        }
+    }
+
+    function togglePlaylist() {
+        const playlist = document.getElementById('full-playlist');
+        const header = document.querySelector('.visual-album-container');
+        const icon = header ? header.querySelector('.bi-chevron-down') : null;
+        
+        if (playlist) {
+            const isShowing = playlist.classList.toggle('show');
+            
+            // Adjust header borders
+            if (header) {
+                if (isShowing) {
+                    header.style.borderBottomLeftRadius = '0';
+                    header.style.borderBottomRightRadius = '0';
+                    header.style.borderBottom = 'none';
+                } else {
+                    header.style.borderBottomLeftRadius = '16px';
+                    header.style.borderBottomRightRadius = '16px';
+                    header.style.borderBottom = ''; // Revert to CSS default
+                }
+            }
+
+            // Rotate chevron
+            if (icon) {
+                if (isShowing) {
+                    icon.style.transform = 'rotate(180deg)';
+                    icon.classList.remove('animate-bounce');
+                } else {
+                    icon.style.transform = 'rotate(0deg)';
+                    icon.classList.add('animate-bounce');
+                }
+                icon.style.transition = 'transform 0.3s ease';
+            }
         }
     }
 
@@ -976,676 +897,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     let currentAudio = null;
     let currentVinyl = null;
 </script>
-<script>
-        <!-- Player Bar -->
-        <div id="player-bar" class="player-bar d-none">
-            <div id="ai-visualizer" class="ai-visualizer">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-            <div class="container d-flex align-items-center justify-content-between h-100 position-relative" style="z-index: 2;">
-                <div class="d-flex align-items-center gap-3" style="width: 30%;">
-                    <div id="player-art" class="player-art">
-                        <i class="bi bi-music-note-beamed"></i>
-                    </div>
-                    <div class="overflow-hidden">
-                        <h6 id="player-title" class="mb-0 text-white text-truncate">Selecciona una canción</h6>
-                        <small id="player-artist" class="text-white-50 text-truncate">Artist</small>
-                    </div>
-                </div>
-                
-                <div class="d-flex align-items-center gap-3 justify-content-center" style="width: 40%;">
-                    <button id="player-prev" onclick="playPrev(event)" class="btn btn-link text-white p-0" style="opacity: 0.3; cursor: default;" disabled><i class="bi bi-skip-start-fill fs-4"></i></button>
-                    <button id="player-play-pause" onclick="togglePlay()" class="btn btn-light rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                        <i class="bi bi-play-fill fs-4"></i>
-                    </button>
-                    <button id="player-next" onclick="playNext(event)" class="btn btn-link text-white p-0" style="opacity: 0.3; cursor: default;" disabled><i class="bi bi-skip-end-fill fs-4"></i></button>
-                </div>
-                
-                <div class="d-flex align-items-center justify-content-end gap-3" style="width: 30%;">
-                    <!-- Hidden YouTube Container -->
-                    <div id="youtube-container" style="width: 1px; height: 1px; opacity: 0; pointer-events: none; position: absolute; bottom: -1000px;"></div>
-                    <button onclick="closePlayer()" class="btn btn-link text-white-50 p-0"><i class="bi bi-x-lg"></i></button>
-                </div>
-            </div>
-        </div>
 
-        <script>
-        // Playlist Data
-        var PLAYLIST_SONGS = <?= !empty($playlist['songs']) ? json_encode(array_slice($playlist['songs'], 0, $limit)) : '[]' ?>;
-        var BOOK_MOOD = <?= json_encode($book['mood'] ?? 'Misterio') ?>;
-        let currentSongIndex = -1;
-
-        // Pre-calculate variations for AI songs to match PHP logic
-        if (Array.isArray(PLAYLIST_SONGS)) {
-            let aiCount = 0;
-            PLAYLIST_SONGS.forEach(song => {
-                if (song.is_ai_generated) {
-                    song.aiVariation = aiCount % 2;
-                    aiCount++;
-                }
-            });
-        }
-
-        function playSongAtIndex(index) {
-            // Ensure PLAYLIST_SONGS is valid
-            if (!PLAYLIST_SONGS || !Array.isArray(PLAYLIST_SONGS)) {
-                console.error("Playlist data missing");
-                return;
-            }
-            
-            // Bounds check
-            if (index < 0) index = 0;
-            if (index >= PLAYLIST_SONGS.length) index = PLAYLIST_SONGS.length - 1;
-
-            currentSongIndex = index;
-            const song = PLAYLIST_SONGS[index];
-            
-            // Update buttons immediately to reflect new state
-            updatePlayerButtons();
-            
-            try {
-                if (song.is_ai_generated) {
-                    playAiTrack(song.title, song.lyrics, song.melody_description, BOOK_MOOD, song.aiVariation);
-                } else {
-                    playYouTubeTrack(song.url, song.title, song.artist);
-                }
-            } catch (e) {
-                console.error("Playback error:", e);
-                // Even if playback fails, we updated the index, so buttons should remain correct
-            }
-        }
-
-        function playNext(e) {
-            if(e) e.preventDefault();
-            if (currentSongIndex < PLAYLIST_SONGS.length - 1) {
-                playSongAtIndex(currentSongIndex + 1);
-            }
-        }
-
-        function playPrev(e) {
-            if(e) e.preventDefault();
-            if (currentSongIndex > 0) {
-                playSongAtIndex(currentSongIndex - 1);
-            }
-        }
-
-        function updatePlayerButtons() {
-            const prevBtn = document.getElementById('player-prev');
-            const nextBtn = document.getElementById('player-next');
-            
-            if (!prevBtn || !nextBtn) return;
-            
-            // Safety check for empty playlist
-            if (!PLAYLIST_SONGS || PLAYLIST_SONGS.length === 0) {
-                prevBtn.disabled = true;
-                prevBtn.style.opacity = '0.3';
-                nextBtn.disabled = true;
-                nextBtn.style.opacity = '0.3';
-                return;
-            }
-
-            // Prev Button
-            if (currentSongIndex > 0) {
-                prevBtn.disabled = false;
-                prevBtn.style.opacity = '1';
-                prevBtn.style.cursor = 'pointer';
-            } else {
-                prevBtn.disabled = true;
-                prevBtn.style.opacity = '0.3';
-                prevBtn.style.cursor = 'default';
-            }
-
-            // Next Button
-            if (currentSongIndex < PLAYLIST_SONGS.length - 1) {
-                nextBtn.disabled = false;
-                nextBtn.style.opacity = '1';
-                nextBtn.style.cursor = 'pointer';
-            } else {
-                nextBtn.disabled = true;
-                nextBtn.style.opacity = '0.3';
-                nextBtn.style.cursor = 'default';
-            }
-        }
-
-            let isPlaying = false;
-            let currentMode = null; // 'youtube' or 'ai'
-            let audioContext = null;
-            let aiOscillators = [];
-
-            function playYouTubeTrack(url, title, artist) {
-                stopPlayback();
-                currentMode = 'youtube';
-                showPlayer(title, artist);
-                
-                let videoId = '';
-                // Handle different YouTube URL formats
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                const match = url.match(regExp);
-                if (match && match[2].length === 11) {
-                    videoId = match[2];
-                } else {
-                    console.error('Invalid YouTube URL');
-                    return;
-                }
-                
-                const container = document.getElementById('youtube-container');
-                // Autoplay=1 starts it
-                container.innerHTML = `<iframe id="yt-iframe" width="200" height="200" src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-                
-                updatePlayButton(true);
-            }
-
-            function playAiTrack(title, lyrics, melody, mood, variation = 0) {
-                stopPlayback();
-                currentMode = 'ai';
-                const artistEl = document.getElementById('player-artist');
-                artistEl.textContent = 'Componiendo una obra maestra... (puede tardar unos segundos)';
-                artistEl.classList.remove('text-truncate');
-                showPlayer(title, 'BookVibes AI Composer');
-                
-                // Visualizer
-                document.getElementById('ai-visualizer').classList.add('active');
-                
-                // 1. Setup Context (Minimum 1:30 = 90 seconds)
-                const duration = 96; // 96 seconds for full bars
-                const sampleRate = 44100;
-                const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-                const audioCtx = new OfflineContext(2, sampleRate * duration, sampleRate);
-                
-                // 2. Music Theory / Mood Logic
-                // BPM: Terror/Mystery (Slow/Heavy), Adventure/Joy (Fast), Romance (Medium/Slow)
-                let bpm = 90;
-                let scaleType = 'Minor'; // Default
-                
-                if (mood === 'Terror' || mood === 'Misterio') {
-                    bpm = 70;
-                    scaleType = 'Phrygian';
-                } else if (mood === 'Aventura' || mood === 'Alegría') {
-                    bpm = 120;
-                    scaleType = 'Major';
-                } else if (mood === 'Romance') {
-                    bpm = 75;
-                    scaleType = 'Major'; // Lydian-ish
-                }
-                
-                // Variation Logic (Force Distinctness)
-                if (variation === 1) {
-                    // Invert/Shift vibe
-                    if (bpm < 100) {
-                        bpm = bpm + 40; // Slow -> Fast
-                    } else {
-                        bpm = bpm - 30; // Fast -> Slow
-                    }
-                    
-                    // Shift Scale
-                    if (scaleType === 'Major') scaleType = 'Mixolydian';
-                    else if (scaleType === 'Minor') scaleType = 'Dorian';
-                    else if (scaleType === 'Phrygian') scaleType = 'Locrian';
-                }
-                
-                const beatTime = 60 / bpm;
-                const barTime = beatTime * 4;
-                
-                // Scales (MIDI Note Numbers relative to Root)
-                const scales = {
-                    'Major': [0, 2, 4, 5, 7, 9, 11],
-                    'Minor': [0, 2, 3, 5, 7, 8, 10],
-                    'Phrygian': [0, 1, 3, 5, 7, 8, 10],
-                    'Dorian': [0, 2, 3, 5, 7, 9, 10],
-                    'Mixolydian': [0, 2, 4, 5, 7, 9, 10],
-                    'Locrian': [0, 1, 3, 5, 6, 8, 10]
-                };
-                const scale = scales[scaleType] || scales['Minor'];
-                const rootNote = 60; // C4 (Middle C)
-
-                // Helpers
-                function m2f(note) { return 440 * Math.pow(2, (note - 69) / 12); }
-                function getNote(octaveOffset = 0) {
-                    const degree = Math.floor(Math.random() * scale.length);
-                    const note = rootNote + scale[degree] + (octaveOffset * 12);
-                    return m2f(note);
-                }
-                function getChord(rootIdx) {
-                    return [0, 2, 4].map(offset => {
-                        const idx = (rootIdx + offset) % scale.length;
-                        const octave = Math.floor((rootIdx + offset) / scale.length);
-                        return rootNote + scale[idx] + (octave * 12);
-                    });
-                }
-
-                // 3. Sequencer / Arranger
-                // Structure: 
-                // Intro: 0 - 16s (4 bars)
-                // Verse 1: 16 - 48s (8 bars)
-                // Chorus: 48 - 64s (4 bars)
-                // Verse 2: 64 - 80s (4 bars)
-                // Outro: 80 - 96s (4 bars)
-                
-                // -- Master FX --
-                const masterGain = audioCtx.createGain();
-                masterGain.gain.value = 0.5;
-                const compressor = audioCtx.createDynamicsCompressor();
-                compressor.threshold.value = -20;
-                compressor.ratio.value = 12;
-                masterGain.connect(compressor);
-                compressor.connect(audioCtx.destination);
-                
-                // -- Instruments Setup --
-                
-                // Reverb (Simple Delay for now as Convolution is heavy without file)
-                const reverbInput = audioCtx.createGain();
-                reverbInput.gain.value = 0.3;
-                const reverbDelay = audioCtx.createDelay();
-                reverbDelay.delayTime.value = 0.1; // Slapback
-                reverbInput.connect(reverbDelay);
-                reverbDelay.connect(masterGain);
-
-                // A. Pads (Chords/Atmosphere) - Background Texture
-                const padGain = audioCtx.createGain();
-                padGain.gain.value = 0.15;
-                padGain.connect(masterGain);
-                padGain.connect(reverbInput);
-
-                // B. Bass - Foundation
-                const bassGain = audioCtx.createGain();
-                bassGain.gain.value = 0.35;
-                bassGain.connect(masterGain);
-
-                // C. Lead/Arp - Melody
-                const leadGain = audioCtx.createGain();
-                leadGain.gain.value = 0.2;
-                leadGain.connect(masterGain);
-                leadGain.connect(reverbInput);
-
-                // D. Drums
-                const drumGain = audioCtx.createGain();
-                drumGain.gain.value = 0.4;
-                drumGain.connect(masterGain);
-
-                // Noise Buffer for Drums
-                const noiseLen = sampleRate * 2;
-                const noiseBuffer = audioCtx.createBuffer(1, noiseLen, sampleRate);
-                const noiseData = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < noiseLen; i++) noiseData[i] = Math.random() * 2 - 1;
-
-                // -- Scheduling Loop --
-                // We iterate by Bars
-                const totalBars = Math.ceil(duration / barTime);
-                
-                for (let bar = 0; bar < totalBars; bar++) {
-                    const time = bar * barTime;
-                    const isIntro = bar < 4;
-                    const isVerse = bar >= 4 && bar < 12; // 8 bars
-                    const isChorus = bar >= 12 && bar < 16; // 4 bars
-                    const isVerse2 = bar >= 16 && bar < 20; // 4 bars
-                    const isOutro = bar >= 20;
-
-                    // Chord Progression (Random but consistent per bar)
-                    const chordRootIdx = Math.floor(Math.random() * scale.length);
-                    const chord = getChord(chordRootIdx);
-                    
-                    // 1. Pads (Always active except maybe very start)
-                    if (!isOutro || Math.random() > 0.5) {
-                        chord.forEach((note, i) => {
-                            const osc = audioCtx.createOscillator();
-                            osc.type = mood === 'Terror' ? 'sawtooth' : 'triangle';
-                            osc.frequency.value = m2f(note - 12); // Lower octave
-                            
-                            const env = audioCtx.createGain();
-                            env.gain.setValueAtTime(0, time);
-                            env.gain.linearRampToValueAtTime(0.1, time + 1);
-                            env.gain.exponentialRampToValueAtTime(0.001, time + barTime);
-                            
-                            osc.connect(env).connect(padGain);
-                            osc.start(time);
-                            osc.stop(time + barTime);
-                        });
-                    }
-
-                    // 2. Bass (Verse, Chorus, Verse2)
-                    if (isVerse || isChorus || isVerse2) {
-                        // Simple pattern: Root on beat 1, maybe others
-                        const steps = isChorus ? 8 : 4; // 8th notes in chorus, quarter in verse
-                        for(let s=0; s<steps; s++) {
-                            const stepTime = time + (s * (barTime/steps));
-                            const osc = audioCtx.createOscillator();
-                            osc.type = 'square';
-                            osc.frequency.value = m2f(chord[0] - 24); // Deep bass
-                            
-                            // Lowpass Filter
-                            const filter = audioCtx.createBiquadFilter();
-                            filter.type = 'lowpass';
-                            filter.frequency.setValueAtTime(400, stepTime);
-                            filter.frequency.exponentialRampToValueAtTime(100, stepTime + 0.1);
-
-                            const env = audioCtx.createGain();
-                            env.gain.setValueAtTime(0.3, stepTime);
-                            env.gain.exponentialRampToValueAtTime(0.01, stepTime + (barTime/steps)*0.8);
-                            
-                            osc.connect(filter).connect(env).connect(bassGain);
-                            osc.start(stepTime);
-                            osc.stop(stepTime + (barTime/steps));
-                        }
-                    }
-
-                    // 3. Lead Melody (Verse: Sparse, Chorus: Active)
-                    if (isVerse || isChorus || isVerse2) {
-                        const density = isChorus ? 0.8 : 0.4;
-                        const steps = 8; // 8th notes
-                        for(let s=0; s<steps; s++) {
-                            if(Math.random() < density) {
-                                const stepTime = time + (s * (barTime/steps));
-                                const osc = audioCtx.createOscillator();
-                                osc.type = 'sine';
-                                osc.frequency.value = getNote(isChorus ? 1 : 0); // Higher in chorus
-                                
-                                const env = audioCtx.createGain();
-                                env.gain.setValueAtTime(0, stepTime);
-                                env.gain.linearRampToValueAtTime(0.1, stepTime + 0.05);
-                                env.gain.exponentialRampToValueAtTime(0.001, stepTime + 0.3);
-                                
-                                osc.connect(env).connect(leadGain);
-                                osc.start(stepTime);
-                                osc.stop(stepTime + 0.4);
-                            }
-                        }
-                    }
-
-                    // 4. Drums (Chorus: Heavy, Verse: Light)
-                    if (isVerse || isChorus || isVerse2) {
-                        // Kick: Beats 1 and 3 (and more in Chorus)
-                        [0, 2].forEach(beat => {
-                            const beatT = time + (beat * beatTime);
-                            const osc = audioCtx.createOscillator();
-                            osc.frequency.setValueAtTime(150, beatT);
-                            osc.frequency.exponentialRampToValueAtTime(0.01, beatT + 0.5);
-                            const env = audioCtx.createGain();
-                            env.gain.setValueAtTime(0.8, beatT);
-                            env.gain.exponentialRampToValueAtTime(0.001, beatT + 0.5);
-                            osc.connect(env).connect(drumGain);
-                            osc.start(beatT);
-                            osc.stop(beatT + 0.5);
-                        });
-                        
-                        // Snare/Hihat: Beats 2 and 4
-                        [1, 3].forEach(beat => {
-                             const beatT = time + (beat * beatTime);
-                             const src = audioCtx.createBufferSource();
-                             src.buffer = noiseBuffer;
-                             const filt = audioCtx.createBiquadFilter();
-                             filt.type = 'highpass';
-                             filt.frequency.value = isChorus ? 1000 : 3000; // Snare vs Hihat-ish
-                             const env = audioCtx.createGain();
-                             env.gain.setValueAtTime(0.3, beatT);
-                             env.gain.exponentialRampToValueAtTime(0.01, beatT + 0.1);
-                             src.connect(filt).connect(env).connect(drumGain);
-                             src.start(beatT);
-                        });
-                    }
-                }
-                
-                audioCtx.startRendering().then(function(renderedBuffer) {
-                    const blob = bufferToWave(renderedBuffer, renderedBuffer.length);
-                    const url = URL.createObjectURL(blob);
-                    
-                    const container = document.getElementById('youtube-container'); // Reuse container
-                    // Create standard audio element
-                    const audio = document.createElement('audio');
-                    audio.id = 'ai-audio-player';
-                    audio.controls = true;
-                    audio.src = url;
-                    audio.autoplay = true;
-                    audio.style.display = 'none'; // hidden player, controlled by custom UI
-                    
-                    audio.onended = () => {
-                        document.getElementById('ai-visualizer').classList.remove('active');
-                        updatePlayButton(false);
-                    };
-                    
-                    container.appendChild(audio);
-                    updatePlayButton(true);
-                    
-                    // Add Download Link to Player
-                    artistEl.innerHTML = `BookVibes AI &bull; <a href="${url}" download="${title}.wav" class="text-white text-decoration-underline ms-2">Descargar MP3 (Inédita)</a>`;
- 
-                 }).catch(function(err) {
-                     console.error('Rendering failed: ' + err);
-                     artistEl.textContent = 'Error al generar audio';
-                 });
-             }
- 
-             // Helper to convert AudioBuffer to WAV Blob
-             function bufferToWave(abuffer, len) {
-                 var numOfChan = abuffer.numberOfChannels,
-                     length = len * numOfChan * 2 + 44,
-                     buffer = new ArrayBuffer(length),
-                     view = new DataView(buffer),
-                     channels = [], i, sample, offset = 0,
-                     pos = 0;
- 
-                 function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
-                 function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
- 
-                 setUint32(0x46464952); // "RIFF"
-                 setUint32(length - 8); // file length - 8
-                 setUint32(0x45564157); // "WAVE"
- 
-                 setUint32(0x20746d66); // "fmt " chunk
-                 setUint32(16); // length = 16
-                 setUint16(1); // PCM (uncompressed)
-                 setUint16(numOfChan);
-                 setUint32(abuffer.sampleRate);
-                 setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-                 setUint16(numOfChan * 2); // block-align
-                 setUint16(16); // 16-bit
- 
-                 setUint32(0x61746164); // "data" - chunk
-                 setUint32(length - pos - 4); // chunk length
- 
-                 for(i = 0; i < abuffer.numberOfChannels; i++)
-                     channels.push(abuffer.getChannelData(i));
- 
-                 // Write interleaved data
-                 for(let k = 0; k < len; k++) {
-                      for(i = 0; i < numOfChan; i++) {
-                         sample = channels[i][k];
-                         // Clamp and scale to 16-bit PCM
-                         sample = Math.max(-1, Math.min(1, sample));
-                         sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-                         view.setInt16(pos, sample, true);
-                         pos += 2;
-                      }
-                 }
- 
-                 return new Blob([buffer], {type: "audio/wav"});
-             }
-
-            function stopAiAudio() {
-                // No need to stop oscillators, just stop the audio element
-                const audio = document.getElementById('ai-audio-player');
-                if(audio) {
-                    audio.pause();
-                    audio.src = '';
-                }
-            }
-
-            function togglePlay() {
-                if (currentMode === 'ai') {
-                    const audio = document.getElementById('ai-audio-player');
-                    if (audio) {
-                        if (audio.paused) {
-                            audio.play();
-                            document.getElementById('ai-visualizer').classList.add('active');
-                            updatePlayButton(true);
-                        } else {
-                            audio.pause();
-                            document.getElementById('ai-visualizer').classList.remove('active');
-                            updatePlayButton(false);
-                        }
-                    }
-                } else if (currentMode === 'youtube') {
-                    // For YouTube iframe, we can't easily toggle without API, 
-                    // but we can just rebuild/clear. 
-                    // Better: use postMessage to pause/play if possible, or just stop for now.
-                    // Simple implementation: Stop if playing.
-                    const iframe = document.getElementById('yt-iframe');
-                    if (iframe) {
-                        // This is a hacky toggle for iframe without full API object
-                        // To properly toggle, we'd need the YT Player API object.
-                        // For now, let's just Close/Stop on pause.
-                        closePlayer();
-                    }
-                }
-            }
-
-            function stopPlayback() {
-                // Stop YouTube
-                document.getElementById('youtube-container').innerHTML = '';
-                
-                // Stop TTS & Audio
-                window.speechSynthesis.cancel();
-                stopAiAudio();
-                
-                document.getElementById('ai-visualizer').classList.remove('active');
-                updatePlayButton(false);
-                isPlaying = false;
-            }
-
-            function showPlayer(title, artist) {
-                const bar = document.getElementById('player-bar');
-                bar.classList.remove('d-none');
-                // Trigger reflow
-                void bar.offsetWidth; 
-                bar.classList.add('active');
-                
-                document.getElementById('player-title').textContent = title;
-                document.getElementById('player-artist').textContent = artist;
-            }
-
-            function closePlayer() {
-                stopPlayback();
-                const bar = document.getElementById('player-bar');
-                bar.classList.remove('active');
-                setTimeout(() => bar.classList.add('d-none'), 300);
-            }
-            
-            function updatePlayButton(playing) {
-                isPlaying = playing;
-                const btn = document.getElementById('player-play-pause');
-                if (playing) {
-                    btn.innerHTML = '<i class="bi bi-pause-fill fs-4"></i>';
-                } else {
-                    btn.innerHTML = '<i class="bi bi-play-fill fs-4"></i>';
-                }
-            }
-        </script>
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const bookId = <?= json_encode($book['id']) ?>;
-    const isPro = <?= json_encode($isPro) ?>;
-
-    // Playlist Generation
-    const playlistLoader = document.getElementById('playlist-loader');
-    if (playlistLoader) {
-        fetch('/books/generate-playlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_id: bookId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.ok && data.playlist && data.playlist.songs && data.playlist.songs.length > 0) {
-                const songs = data.playlist.songs;
-                const limit = isPro ? 999 : 7;
-                let html = '';
-                
-                // Vinyl Trigger
-                html += `
-                <div class="visual-album-container text-center" onclick="document.getElementById('full-playlist').classList.toggle('show');">
-                    <div class="vinyl-record">
-                        <div class="vinyl-label">
-                            ${(data.playlist.mood || 'Vibes').substring(0, 10)}
-                        </div>
-                    </div>
-                    <h6 class="mt-4 mb-1 fw-bold text-white">Playlist Generada</h6>
-                    <p class="small text-white-50 mb-0">${songs.length} Pistas • Tocar para ver</p>
-                </div>
-                <div id="full-playlist">
-                    <div class="list-group list-group-flush">
-                `;
-
-                // Update Global Playlist Data for Player Navigation
-                if (window.PLAYLIST_SONGS) {
-                    window.PLAYLIST_SONGS = songs;
-                    window.BOOK_MOOD = data.playlist.mood || 'Misterio';
-                    
-                    // Recalculate AI variations
-                    let aiCount = 0;
-                    window.PLAYLIST_SONGS.forEach(song => {
-                        if (song.is_ai_generated) {
-                            song.aiVariation = aiCount % 2;
-                            aiCount++;
-                        }
-                    });
-                }
-
-                let aiCount = 0;
-                songs.forEach((song, index) => {
-                    if (index >= limit) return;
-                    const isAi = !!song.is_ai_generated;
-                    const variation = isAi ? (aiCount++ % 2) : 0;
-                    const aiClass = isAi ? 'ai-track' : '';
-                    const aiBadge = isAi ? '<span class="badge bg-primary me-1" style="font-size: 0.6em; vertical-align: middle;">AI ORIGINAL</span>' : '';
-                    const melodyDesc = isAi ? `<small class="text-info d-block" style="font-size: 0.75em;">${song.melody_description || ''}</small>` : '';
-                    
-                    // Use playSongAtIndex for unified player control
-                    let playBtn = `<button type="button" class="btn-listen" onclick="playSongAtIndex(${index})"><i class="bi bi-play-fill"></i></button>`;
-
-                    html += `
-                    <div class="playlist-track ${aiClass}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="me-3 overflow-hidden">
-                                <div class="fw-semibold text-truncate">
-                                    ${aiBadge} ${song.title}
-                                </div>
-                                <small class="text-muted text-truncate d-block">${song.artist}</small>
-                                ${melodyDesc}
-                            </div>
-                            ${playBtn}
-                        </div>
-                    </div>`;
-                });
-
-                html += `</div>`; // Close list-group
-                
-                // Add Pro/Upgrade Actions
-                html += `<div class="p-3 bg-dark bg-opacity-25 border-top border-secondary border-opacity-10">`;
-                if (!isPro && songs.length > 7) {
-                     html += `<div class="text-center py-2"><small class="text-muted d-block mb-2">Mostrando 7 de ${songs.length} canciones</small><a href="/pro/upgrade?book_id=${bookId}" class="btn btn-sm btn-primary-glow w-100"><i class="bi bi-unlock-fill me-1"></i> Desbloquear Todo (Pro)</a></div>`;
-                } else if (!isPro) {
-                     html += `<div class="d-grid mt-2"><a href="/pro/upgrade?book_id=${bookId}" class="btn btn-outline-light btn-sm"><i class="bi bi-stars me-1"></i> Mejorar Recomendaciones</a></div>`;
-                } else {
-                    html += `<div class="d-grid gap-2"><a href="/books/add-songs?id=${bookId}" class="btn btn-outline-light btn-sm"><i class="bi bi-plus-circle me-2"></i>Añadir 10 canciones más</a></div>`;
-                }
-                html += `</div></div>`; // Close full-playlist and footer
-
-                document.getElementById('playlist-container').innerHTML = html;
-            } else {
-                document.getElementById('playlist-container').innerHTML = '<div class="p-4 text-center text-muted">No se pudo generar la playlist.</div>';
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            document.getElementById('playlist-container').innerHTML = '<div class="p-4 text-center text-muted">Error al cargar playlist.</div>';
-        });
-    }
-
-    // Character Generation (Legacy code removed)
-
-});
-</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

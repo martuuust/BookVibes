@@ -16,9 +16,16 @@ class Env
                 continue;
             }
 
+            if (!str_contains($line, '=')) {
+                continue;
+            }
+
             list($name, $value) = explode('=', $line, 2);
             $name = trim($name);
-            $value = trim($value);
+            $value = trim($value ?? '');
+            // Remove surrounding quotes if present
+            if (preg_match('/^"(.*)"$/', $value, $m)) $value = $m[1];
+            elseif (preg_match("/^'(.*)'$/", $value, $m)) $value = $m[1];
 
             if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
                 putenv(sprintf('%s=%s', $name, $value));

@@ -3,7 +3,6 @@
 
 require_once __DIR__ . '/tests/BookControllerTest.php';
 require_once __DIR__ . '/tests/MoodAnalyzerTest.php';
-require_once __DIR__ . '/tests/AISongGeneratorTest.php';
 
 echo "Starting Unit Tests...\n";
 echo "======================\n\n";
@@ -11,8 +10,7 @@ echo "======================\n\n";
 $tests = [
 
     new MoodAnalyzerTest(),
-    new BookControllerTest(),
-    new AISongGeneratorTest()
+    new BookControllerTest()
 ];
 
 $totalPassed = 0;

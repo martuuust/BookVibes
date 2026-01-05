@@ -489,7 +489,7 @@ body:not(.dark-mode) .btn-outline-light:hover {
                     <a href="/books/search" class="btn btn-outline-primary mt-2">Buscar Libros</a>
                 </div>
             <?php else: ?>
-                <div class="row row-cols-2 row-cols-md-5 row-cols-lg-6 g-4">
+                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
                     <?php foreach ($books as $book): ?>
                     <div class="col">
                         <div class="card book-card h-100 shadow-sm">
