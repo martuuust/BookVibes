@@ -536,6 +536,8 @@
             background-color: #c82333 !important;
             color: white !important;
         }
+
+
     </style>
 </head>
 <body>
@@ -691,14 +693,15 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                     foreach($playlist['songs'] as $song): 
                                         if($i++ >= $limit) break; 
                                 ?>
-                                    <div class="playlist-track" id="song-row-<?= $i - 1 ?>">
+                                    <div class="playlist-track" id="song-row-<?= $i - 1 ?>" data-url="<?= htmlspecialchars($song['url'] ?? '') ?>" data-title="<?= htmlspecialchars($song['title']) ?>" data-artist="<?= htmlspecialchars($song['artist']) ?>">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <div class="me-3 overflow-hidden">
+                                            <div class="me-3 overflow-hidden flex-grow-1">
                                                 <div class="fw-semibold text-truncate">
                                                     <?= htmlspecialchars($song['title']) ?>
                                                 </div>
                                                 <small class="text-muted text-truncate d-block"><?= htmlspecialchars($song['artist']) ?></small>
                                             </div>
+
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -767,11 +770,52 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 </div>
             </div>
 
-            <!-- Generation UI Removed -->
-            
+            <!-- Characters Section -->
+            <div id="characters-section" class="mt-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="fw-bold mb-0">Personajes Principales</h3>
+                    <?php if(!empty($characters)): ?>
+                        <button onclick="generateCharacters(this)" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                            <i class="bi bi-arrow-repeat me-2"></i>Regenerar
+                        </button>
+                    <?php endif; ?>
+                </div>
 
-
-        </div>
+                <?php if(empty($characters)): ?>
+                    <div id="characters-loader" class="p-5 text-center">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <h6 class="text-white">Identificando protagonistas...</h6>
+                        <p class="text-white-50 small">Analizando la trama para encontrar a los personajes principales</p>
+                    </div>
+                <?php else: ?>
+                    <?php if(isset($characters[0]['source']) && $characters[0]['source'] === 'Mock'): ?>
+                        <div class="alert alert-warning mb-4 border-0 bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Modo Demo:</strong> Para generar personajes reales e imágenes, añade tu <code>OPENAI_API_KEY</code> en el archivo <code>.env</code>.
+                        </div>
+                    <?php endif; ?>
+                    <div class="row g-3">
+                        <?php foreach($characters as $char): ?>
+                            <div class="col-xl-3 col-md-4 col-sm-6">
+                                <div class="premium-char-card h-100">
+                                    <div class="premium-char-img-wrapper">
+                                        <?php if(!empty($char['image_url'])): ?>
+                                            <img src="<?= htmlspecialchars($char['image_url']) ?>" alt="<?= htmlspecialchars($char['name']) ?>" class="premium-char-img">
+                                        <?php else: ?>
+                                            <div class="character-placeholder">
+                                                <i class="bi bi-person"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="premium-char-overlay">
+                                            <div class="premium-char-name"><?= htmlspecialchars($char['name']) ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>        </div>
     </div>
 </div>
 
@@ -782,7 +826,15 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
     document.addEventListener('DOMContentLoaded', () => {
         checkPlaylistLoad();
+        checkCharactersLoad();
     });
+
+    function checkCharactersLoad() {
+        const loader = document.getElementById('characters-loader');
+        if (loader) {
+            generateCharacters();
+        }
+    }
 
 
 
@@ -893,10 +945,45 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         });
     }
 
-    // Handle vinyl play
-    let currentAudio = null;
-    let currentVinyl = null;
+    function generateCharacters(btn = null) {
+        let originalContent = '';
+        if (btn) {
+            originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generando...';
+            btn.disabled = true;
+        }
+        
+        fetch('/books/generate-characters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ book_id: BOOK_ID })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                if (btn) {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error de conexión');
+            if (btn) {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        });
+    }
+
+
 </script>
+
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -10,6 +10,8 @@ use App\Services\MoodAnalyzer;
 use App\Services\YouTubeSearchService;
 
 use App\Models\Book;
+use App\Models\Character;
+use App\Services\CharacterGeneratorService;
 
 use App\Models\Playlist;
 
@@ -440,6 +442,7 @@ class BookController extends Controller
         if (session_status() === PHP_SESSION_NONE) session_start();
         $book = Book::find($id);
         
+        $characters = Character::getByBookId($id);
 
         $playlist = Playlist::getByBookId($id);
         $spotifyConfigured = (trim(getenv('SPOTIFY_CLIENT_ID') ?: '') !== '') && (trim(getenv('SPOTIFY_REDIRECT_URI') ?: '') !== '');
@@ -449,10 +452,32 @@ class BookController extends Controller
 
         return $this->render('books/show', [
             'book' => $book,
+            'characters' => $characters,
             'playlist' => $playlist,
             'spotify_configured' => $spotifyConfigured,
             'pro_enabled' => !empty($_SESSION['pro']) && $_SESSION['pro']
         ]);
+    }
+
+    public function generateCharacters(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        
+        if (!$bookId) {
+            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
+        }
+        
+        $book = Book::find($bookId);
+        if (!$book) {
+            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+        }
+
+        $service = new CharacterGeneratorService();
+        $result = $service->generateForBook($bookId, $book['title'], $book['author'], $book['synopsis']);
+        
+        return $this->json($result);
     }
 
     public function delete(Request $request)
@@ -637,6 +662,7 @@ class BookController extends Controller
 
         $targetPlaylistId = $playlist['spotify_playlist_id'] ?? null;
         $playlistUrl = '';
+        $existingUris = []; // Track URIs already in Spotify playlist
 
         // Check if existing playlist is valid
         if ($targetPlaylistId) {
@@ -645,6 +671,16 @@ class BookController extends Controller
                  $targetPlaylistId = null; // Invalid/Deleted, create new
              } else {
                  $playlistUrl = $check['external_urls']['spotify'] ?? ('https://open.spotify.com/playlist/' . $targetPlaylistId);
+                 
+                 // Get existing tracks from the Spotify playlist to avoid duplicates
+                 $existingTracks = $this->spotifyApiGet('https://api.spotify.com/v1/playlists/' . $targetPlaylistId . '/tracks?limit=100', $token);
+                 if ($existingTracks && isset($existingTracks['items'])) {
+                     foreach ($existingTracks['items'] as $item) {
+                         if (isset($item['track']['uri'])) {
+                             $existingUris[$item['track']['uri']] = true;
+                         }
+                     }
+                 }
              }
         }
 
@@ -729,6 +765,7 @@ class BookController extends Controller
             // If we don't have a valid artist (extracted or from DB), we do NOT add the song.
             // This prevents "random" songs from being added when the title is generic.
 
+            // Only add if not already in Spotify playlist and not a duplicate in this batch
             if ($uri && !isset($seen[$uri]) && !isset($existingUris[$uri])) {
                 $uris[] = $uri;
                 $seen[$uri] = true;
@@ -736,7 +773,8 @@ class BookController extends Controller
             if (count($uris) >= 100) break;
         }
         if (!empty($uris)) {
-            // Use POST to append tracks (as requested by user to allow growing playlist on regeneration)
+            // Use POST to ADD only the new songs to the existing playlist
+            // This preserves existing songs and adds only new recommendations
             $this->spotifyApiPost('https://api.spotify.com/v1/playlists/' . urlencode($targetPlaylistId) . '/tracks', $token, [
                 'uris' => $uris
             ]);

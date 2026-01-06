@@ -195,17 +195,15 @@ class YouTubeSearchService
         $artist = mb_strtolower($t['artist'] ?? '');
         $score = 0;
         
-        // Prioritize Official Content (Since we are listing, not embedding)
-        if (str_contains($title, 'official video')) $score += 40;
-        if (str_contains($title, 'video oficial')) $score += 40;
-        if (str_contains($title, 'music video')) $score += 30;
+        // Prioritize Lyrics/Audio for better embedding support
+        if (str_contains($title, 'lyrics') || str_contains($title, 'letra')) $score += 40;
+        if (str_contains($title, 'official audio') || str_contains($title, 'audio oficial')) $score += 30;
         
-        if (str_contains($artist, 'vevo')) $score += 20; 
-        if (str_contains($artist, 'topic')) $score += 10;
+        // Give some points to official video but less than lyrics to avoid embedding blocks
+        if (str_contains($title, 'official video') || str_contains($title, 'video oficial')) $score += 10;
         
-        // Still value lyrics/audio as good fallbacks
-        if (str_contains($title, 'official audio')) $score += 20;
-        if (str_contains($title, 'lyrics')) $score += 10;
+        if (str_contains($artist, 'vevo')) $score += 5; 
+        if (str_contains($artist, 'topic')) $score += 5;
         
         if (str_contains($artist, 'official') || str_contains($artist, 'records') || str_contains($artist, 'music')) $score += 5;
         if (strlen($artist) > 0) $score += 1;

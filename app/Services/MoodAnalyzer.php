@@ -92,7 +92,7 @@ class MoodAnalyzer
              // Try broader searches
              $moreQueries = [];
              foreach ($selectedArtists as $artist) {
-                $moreQueries[] = "$artist official video";
+                $moreQueries[] = "$artist lyrics";
              }
              $more = $yt->searchTracks($moreQueries, 12, $artists);
              
