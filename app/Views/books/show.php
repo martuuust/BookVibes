@@ -722,7 +722,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                                     <i class="bi bi-arrow-repeat me-2"></i>Regenerar
                                                 </button>
                                                 <!-- Custom Popover -->
-                                                <div id="regenerate-confirm-popover" class="position-absolute bg-white shadow-lg rounded p-3 d-none fade-in-up" style="bottom: 110%; left: 50%; transform: translateX(-50%); width: 200px; z-index: 1050;">
+                                                <div id="regenerate-confirm-popover" class="position-absolute bg-white shadow-lg rounded p-3 d-none fade-in-up" style="bottom: 110%; right: 0; min-width: 180px; white-space: nowrap; z-index: 1050;">
                                                     <div class="text-dark text-center">
                                                         <p class="small mb-2 fw-bold" style="font-size: 0.8rem; line-height: 1.2;">¿Regenerar Playlist?</p>
                                                         <div class="d-flex justify-content-center gap-2">
@@ -731,7 +731,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                                                         </div>
                                                     </div>
                                                     <!-- Arrow -->
-                                                    <div class="position-absolute bg-white" style="bottom: -5px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px;"></div>
+                                                    <div class="position-absolute bg-white" style="bottom: -5px; right: 20px; transform: rotate(45deg); width: 10px; height: 10px;"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -770,52 +770,8 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 </div>
             </div>
 
-            <!-- Characters Section -->
-            <div id="characters-section" class="mt-5">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold mb-0">Personajes Principales</h3>
-                    <?php if(!empty($characters)): ?>
-                        <button onclick="generateCharacters(this)" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-                            <i class="bi bi-arrow-repeat me-2"></i>Regenerar
-                        </button>
-                    <?php endif; ?>
-                </div>
+            <!-- Characters Section (Removed per user request) -->
 
-                <?php if(empty($characters)): ?>
-                    <div id="characters-loader" class="p-5 text-center">
-                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
-                        <h6 class="text-white">Identificando protagonistas...</h6>
-                        <p class="text-white-50 small">Analizando la trama para encontrar a los personajes principales</p>
-                    </div>
-                <?php else: ?>
-                    <?php if(isset($characters[0]['source']) && $characters[0]['source'] === 'Mock'): ?>
-                        <div class="alert alert-warning mb-4 border-0 bg-warning bg-opacity-10 text-warning">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <strong>Modo Demo:</strong> Para generar personajes reales e imágenes, añade tu <code>OPENAI_API_KEY</code> en el archivo <code>.env</code>.
-                        </div>
-                    <?php endif; ?>
-                    <div class="row g-3">
-                        <?php foreach($characters as $char): ?>
-                            <div class="col-xl-3 col-md-4 col-sm-6">
-                                <div class="premium-char-card h-100">
-                                    <div class="premium-char-img-wrapper">
-                                        <?php if(!empty($char['image_url'])): ?>
-                                            <img src="<?= htmlspecialchars($char['image_url']) ?>" alt="<?= htmlspecialchars($char['name']) ?>" class="premium-char-img">
-                                        <?php else: ?>
-                                            <div class="character-placeholder">
-                                                <i class="bi bi-person"></i>
-                                            </div>
-                                        <?php endif; ?>
-                                        <div class="premium-char-overlay">
-                                            <div class="premium-char-name"><?= htmlspecialchars($char['name']) ?></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>        </div>
     </div>
 </div>
 

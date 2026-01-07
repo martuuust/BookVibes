@@ -45,6 +45,12 @@ $router->get('/spotify/callback', [App\Controllers\BookController::class, 'spoti
 $router->get('/bookvibes/callback', [App\Controllers\BookController::class, 'spotifyCallback']);
 $router->get('/spotify/create', [App\Controllers\BookController::class, 'spotifyCreate']);
 
+// Diary Routes
+$router->get('/diary', [App\Controllers\BookController::class, 'diaryPage']);
+$router->post('/diary/create', [App\Controllers\BookController::class, 'apiCreateDiaryEntry']);
+$router->post('/diary/update', [App\Controllers\BookController::class, 'apiUpdateDiaryEntry']);
+$router->post('/diary/delete', [App\Controllers\BookController::class, 'apiDeleteDiaryEntry']);
+
 // Pro Upgrade (simple stub)
 $router->get('/pro/upgrade', function() {
     $userName = $_SESSION['user_name'] ?? 'Lector';

@@ -10,8 +10,7 @@ use App\Services\MoodAnalyzer;
 use App\Services\YouTubeSearchService;
 
 use App\Models\Book;
-use App\Models\Character;
-use App\Services\CharacterGeneratorService;
+
 
 use App\Models\Playlist;
 
@@ -48,13 +47,17 @@ class BookController extends Controller
         $userRow = $db->query("SELECT avatar_icon FROM users WHERE id = ?", [$_SESSION['user_id']])->fetch();
         $avatarIcon = $userRow['avatar_icon'] ?? null;
 
+        // Get Diary Entries
+        $diaryEntries = \App\Models\DiaryEntry::getByUser($_SESSION['user_id']);
+
         return $this->render('dashboard', [
             'user_name' => $_SESSION['user_name'], 
             'books' => $books,
             'stats' => $stats,
             'mood_stats' => $moodStats,
             'avatar_icon' => $avatarIcon,
-            'isPro' => !empty($_SESSION['pro']) && $_SESSION['pro']
+            'isPro' => !empty($_SESSION['pro']) && $_SESSION['pro'],
+            'diary_entries' => $diaryEntries
         ]);
     }
 
@@ -272,6 +275,15 @@ class BookController extends Controller
         $ub = $db->query("SELECT regen_count FROM user_books WHERE user_id = ? AND book_id = ?", [$userId, $bookId])->fetch();
         $currentCount = $ub['regen_count'] ?? 0;
 
+        // Enforce limit for Basic users (1 free regeneration)
+        if (!$isPro && $currentCount >= 1) {
+            return $this->json([
+                'ok' => false, 
+                'require_upgrade' => true,
+                'error' => 'Has alcanzado el límite de regeneraciones gratuitas'
+            ]);
+        }
+
         // Increment Count
         $db->query("UPDATE user_books SET regen_count = regen_count + 1 WHERE user_id = ? AND book_id = ?", [$userId, $bookId]);
 
@@ -310,32 +322,44 @@ class BookController extends Controller
             'Romántico' => [
                 ['title' => 'All of Me', 'artist' => 'John Legend', 'url' => 'https://www.youtube.com/watch?v=450p7goxZqg'],
                 ['title' => 'Perfect', 'artist' => 'Ed Sheeran', 'url' => 'https://www.youtube.com/watch?v=2Vv-BfVoq4g'],
-                ['title' => 'Just the Way You Are', 'artist' => 'Bruno Mars', 'url' => 'https://www.youtube.com/watch?v=LjhCEhWiKXk'],
-                ['title' => 'A Thousand Years', 'artist' => 'Christina Perri', 'url' => 'https://www.youtube.com/watch?v=rtOvBOTyX00'],
-                ['title' => 'Lover', 'artist' => 'Taylor Swift', 'url' => 'https://www.youtube.com/watch?v=-BjZmE2gtdo']
+                ['title' => 'Just the Way You Are', 'artist' => 'Bruno Mars', 'url' => 'https://www.youtube.com/watch?v=LjhCEhWiKXk']
             ],
-            'Misterio' => [
+            'Misterio' => [ // Handles Intriga y Suspenso too via check
                 ['title' => 'Bad Guy', 'artist' => 'Billie Eilish', 'url' => 'https://www.youtube.com/watch?v=DyDfgMOUjCI'],
-                ['title' => 'Demons', 'artist' => 'Imagine Dragons', 'url' => 'https://www.youtube.com/watch?v=mWRsgZuwf_8'],
                 ['title' => 'Heathens', 'artist' => 'Twenty One Pilots', 'url' => 'https://www.youtube.com/watch?v=UprcpDW1qQY'],
-                ['title' => 'Bury a Friend', 'artist' => 'Billie Eilish', 'url' => 'https://www.youtube.com/watch?v=HUHC9tYz8ik'],
-                ['title' => 'In the Air Tonight', 'artist' => 'Phil Collins', 'url' => 'https://www.youtube.com/watch?v=YkADj0TPrJA']
+                ['title' => 'Bury a Friend', 'artist' => 'Billie Eilish', 'url' => 'https://www.youtube.com/watch?v=HUHC9tYz8ik']
+            ],
+            'Aventura' => [
+                ['title' => 'Believer', 'artist' => 'Imagine Dragons', 'url' => 'https://www.youtube.com/watch?v=7wtfhZwyrcc'],
+                ['title' => 'Viva La Vida', 'artist' => 'Coldplay', 'url' => 'https://www.youtube.com/watch?v=dvgZkm1xWPE'],
+                ['title' => 'Pompeii', 'artist' => 'Bastille', 'url' => 'https://www.youtube.com/watch?v=F90Cw4l-8NY']
             ],
             'Fantasía' => [
                 ['title' => 'The Lord of the Rings Theme', 'artist' => 'Howard Shore', 'url' => 'https://www.youtube.com/watch?v=_pGaz_qN0cw'],
                 ['title' => 'Game of Thrones Theme', 'artist' => 'Ramin Djawadi', 'url' => 'https://www.youtube.com/watch?v=s7L2PVnzflw'],
-                ['title' => 'Harry Potter Theme', 'artist' => 'John Williams', 'url' => 'https://www.youtube.com/watch?v=Htaj3o3JD8I'],
-                ['title' => 'Pirates of the Caribbean', 'artist' => 'Hans Zimmer', 'url' => 'https://www.youtube.com/watch?v=27mB8verLK8'],
-                ['title' => 'Avatar Theme', 'artist' => 'James Horner', 'url' => 'https://www.youtube.com/watch?v=1w0_kazbb_U']
+                ['title' => 'Into the Unknown', 'artist' => 'Aurora', 'url' => 'https://www.youtube.com/watch?v=gIOyB9ZXn8s']
             ],
             'Terror' => [
                 ['title' => 'Thriller', 'artist' => 'Michael Jackson', 'url' => 'https://www.youtube.com/watch?v=sOnqjkJTMaA'],
                 ['title' => 'Halloween Theme', 'artist' => 'John Carpenter', 'url' => 'https://www.youtube.com/watch?v=VafWZ4s2tHQ'],
-                ['title' => 'Tubular Bells', 'artist' => 'Mike Oldfield', 'url' => 'https://www.youtube.com/watch?v=TXvtDm820zI'],
-                ['title' => 'Psycho Theme', 'artist' => 'Bernard Herrmann', 'url' => 'https://www.youtube.com/watch?v=qMTrVGPbW1Y'],
-                ['title' => 'Ghostbusters', 'artist' => 'Ray Parker Jr.', 'url' => 'https://www.youtube.com/watch?v=Fe93CLbHjxQ']
+                ['title' => 'Tubular Bells', 'artist' => 'Mike Oldfield', 'url' => 'https://www.youtube.com/watch?v=TXvtDm820zI']
+            ],
+            'Comedia' => [
+                ['title' => 'All Star', 'artist' => 'Smash Mouth', 'url' => 'https://www.youtube.com/watch?v=L_jWHffIx5E'],
+                ['title' => 'Happy', 'artist' => 'Pharrell Williams', 'url' => 'https://www.youtube.com/watch?v=ZbZSe6N_BXs'],
+                ['title' => 'Uptown Funk', 'artist' => 'Mark Ronson', 'url' => 'https://www.youtube.com/watch?v=OPf0YbXqDm0']
+            ],
+            'Drama' => [
+                ['title' => 'Someone Like You', 'artist' => 'Adele', 'url' => 'https://www.youtube.com/watch?v=hLQl3WQQoQ0'],
+                ['title' => 'Fix You', 'artist' => 'Coldplay', 'url' => 'https://www.youtube.com/watch?v=k4V3Mo61fJM'],
+                ['title' => 'Skinny Love', 'artist' => 'Birdy', 'url' => 'https://www.youtube.com/watch?v=aNzCDt2ueHI']
             ]
         ];
+        
+        // Aliases for legacy support
+        if (stripos($mood, 'Intriga') !== false) $mood = 'Misterio';
+        if (stripos($mood, 'Épico') !== false) $mood = 'Aventura';
+        if (stripos($mood, 'Melancólico') !== false) $mood = 'Drama';
 
         foreach ($defaults as $key => $list) {
             if (stripos($mood, $key) !== false) return $list;
@@ -345,8 +369,6 @@ class BookController extends Controller
         return [
             ['title' => 'As It Was', 'artist' => 'Harry Styles', 'url' => 'https://www.youtube.com/watch?v=H5v3kku4y6Q'],
             ['title' => 'Blinding Lights', 'artist' => 'The Weeknd', 'url' => 'https://www.youtube.com/watch?v=4NRXx6U8ABQ'],
-            ['title' => 'Stay', 'artist' => 'The Kid LAROI & Justin Bieber', 'url' => 'https://www.youtube.com/watch?v=kTJczUoc26U'],
-            ['title' => 'Save Your Tears', 'artist' => 'The Weeknd', 'url' => 'https://www.youtube.com/watch?v=XXYlFuWEuKI'],
             ['title' => 'Levitating', 'artist' => 'Dua Lipa', 'url' => 'https://www.youtube.com/watch?v=TUVcZfQe-Kw']
         ];
     }
@@ -442,7 +464,7 @@ class BookController extends Controller
         if (session_status() === PHP_SESSION_NONE) session_start();
         $book = Book::find($id);
         
-        $characters = Character::getByBookId($id);
+
 
         $playlist = Playlist::getByBookId($id);
         $spotifyConfigured = (trim(getenv('SPOTIFY_CLIENT_ID') ?: '') !== '') && (trim(getenv('SPOTIFY_REDIRECT_URI') ?: '') !== '');
@@ -452,33 +474,14 @@ class BookController extends Controller
 
         return $this->render('books/show', [
             'book' => $book,
-            'characters' => $characters,
+            'characters' => [],
             'playlist' => $playlist,
             'spotify_configured' => $spotifyConfigured,
             'pro_enabled' => !empty($_SESSION['pro']) && $_SESSION['pro']
         ]);
     }
 
-    public function generateCharacters(Request $request)
-    {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        $body = $request->getBody();
-        $bookId = $body['book_id'] ?? null;
-        
-        if (!$bookId) {
-            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
-        }
-        
-        $book = Book::find($bookId);
-        if (!$book) {
-            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
-        }
 
-        $service = new CharacterGeneratorService();
-        $result = $service->generateForBook($bookId, $book['title'], $book['author'], $book['synopsis']);
-        
-        return $this->json($result);
-    }
 
     public function delete(Request $request)
     {
@@ -960,6 +963,104 @@ class BookController extends Controller
 
         header("Location: /books/show?id=$id");
         exit;
+    }
+
+    /**
+     * Create a new diary entry
+     */
+    public function apiCreateDiaryEntry(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        if (!isset($_SESSION['user_id'])) {
+            return $this->json(['ok' => false, 'error' => 'No autorizado'], 401);
+        }
+
+        $body = $request->getBody();
+        $bookTitle = trim($body['book_title'] ?? '');
+        $content = trim($body['content'] ?? '');
+
+        if ($bookTitle === '' || $content === '') {
+            return $this->json(['ok' => false, 'error' => 'Título y contenido son requeridos'], 400);
+        }
+
+        $id = \App\Models\DiaryEntry::create($_SESSION['user_id'], $bookTitle, $content);
+
+        return $this->json(['ok' => true, 'id' => $id]);
+    }
+
+    /**
+     * Update a diary entry
+     */
+    public function apiUpdateDiaryEntry(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        if (!isset($_SESSION['user_id'])) {
+            return $this->json(['ok' => false, 'error' => 'No autorizado'], 401);
+        }
+
+        $body = $request->getBody();
+        $id = $body['id'] ?? null;
+        $bookTitle = trim($body['book_title'] ?? '');
+        $content = trim($body['content'] ?? '');
+
+        if (!$id || $bookTitle === '' || $content === '') {
+            return $this->json(['ok' => false, 'error' => 'ID, título y contenido son requeridos'], 400);
+        }
+
+        // Verify ownership is handled in model or here? Model update has userId check.
+        $success = \App\Models\DiaryEntry::update($id, $_SESSION['user_id'], $bookTitle, $content);
+
+        if ($success) {
+            return $this->json(['ok' => true]);
+        } else {
+            return $this->json(['ok' => false, 'error' => 'No se pudo actualizar o no autorizado'], 400);
+        }
+    }
+
+    /**
+     * Delete a diary entry
+     */
+    public function apiDeleteDiaryEntry(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        if (!isset($_SESSION['user_id'])) {
+            return $this->json(['ok' => false, 'error' => 'No autorizado'], 401);
+        }
+
+        $body = $request->getBody();
+        $entryId = (int)($body['id'] ?? 0);
+
+        if ($entryId <= 0) {
+            return $this->json(['ok' => false, 'error' => 'ID inválido'], 400);
+        }
+
+        $deleted = \App\Models\DiaryEntry::delete($entryId, $_SESSION['user_id']);
+
+        return $this->json(['ok' => $deleted]);
+    }
+
+    /**
+     * Diary page with 3D book experience
+     */
+    public function diaryPage(Request $request)
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: /login');
+            exit;
+        }
+
+        $diaryEntries = \App\Models\DiaryEntry::getByUser($_SESSION['user_id']);
+        
+        return $this->render('diary', [
+            'user_name' => $_SESSION['user_name'],
+            'diary_entries' => $diaryEntries,
+            'isPro' => !empty($_SESSION['pro']) && $_SESSION['pro']
+        ]);
     }
 
 

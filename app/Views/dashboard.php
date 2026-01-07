@@ -489,7 +489,7 @@ body:not(.dark-mode) .btn-outline-light:hover {
                     <a href="/books/search" class="btn btn-outline-primary mt-2">Buscar Libros</a>
                 </div>
             <?php else: ?>
-                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
+                <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-4">
                     <?php foreach ($books as $book): ?>
                     <div class="col">
                         <div class="card book-card h-100 shadow-sm">
@@ -525,9 +525,191 @@ body:not(.dark-mode) .btn-outline-light:hover {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+
+            <!-- Reading Diary Section -->
+            <div class="mt-5">
+                <div class="mb-4">
+                    <h3 class="section-title mb-0"><i class="bi bi-journal-text me-2"></i>Mi Diario de Lectura</h3>
+                </div>
+
+                <?php if(empty($diary_entries)): ?>
+                    <div class="text-center p-5 bg-white rounded shadow-sm">
+                        <i class="bi bi-journal-bookmark display-1 text-muted opacity-25"></i>
+                        <h4 class="mt-3">Tu diario está vacío</h4>
+                        <p class="text-muted">¡Crea tu primera entrada para registrar tus pensamientos sobre tus lecturas!</p>
+                        <a href="/diary" class="btn btn-outline-primary mt-2">
+                            <i class="bi bi-pencil me-2"></i>Escribir primera entrada
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        <?php foreach ($diary_entries as $entry): ?>
+                        <div class="col">
+                            <a href="/diary" class="text-decoration-none">
+                                <div class="diary-page card h-100 shadow-sm">
+                                    <div class="card-body position-relative">
+                                        <div class="diary-lines"></div>
+                                        <div class="diary-content">
+                                            <h5 class="diary-book-title fw-bold text-truncate mb-2" title="<?= htmlspecialchars($entry['book_title']) ?>">
+                                                <i class="bi bi-book text-primary me-2"></i><?= htmlspecialchars($entry['book_title']) ?>
+                                            </h5>
+                                            <p class="diary-text text-muted mb-3"><?= nl2br(htmlspecialchars(substr($entry['content'], 0, 100))) ?>...</p>
+                                            <div class="diary-date text-end">
+                                                <small class="text-muted">
+                                                    <i class="bi bi-calendar3 me-1"></i>
+                                                    <?= date('d M Y', strtotime($entry['created_at'])) ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Diary Modal -->
+<div class="modal fade" id="diaryModal" tabindex="-1" aria-labelledby="diaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="diaryModalLabel">
+                    <i class="bi bi-journal-plus me-2 text-primary"></i>Nueva Entrada del Diario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <form id="diaryForm">
+                    <div class="mb-3">
+                        <label for="diaryBookTitle" class="form-label fw-semibold">Título del Libro</label>
+                        <input type="text" class="form-control form-control-lg" id="diaryBookTitle" placeholder="Ej: Cien años de soledad" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="diaryContent" class="form-label fw-semibold">Tus pensamientos</label>
+                        <textarea class="form-control" id="diaryContent" rows="5" placeholder="Escribe tus reflexiones, citas favoritas, opiniones..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn cta-primary px-4" onclick="saveDiaryEntry()">
+                    <i class="bi bi-check-lg me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Diary Styles */
+    .diary-page {
+        background: linear-gradient(135deg, #ede9fe 0%, #fce7f3 50%, #e0f2fe 100%);
+        border: none !important;
+        border-radius: 4px 16px 16px 4px !important;
+        position: relative;
+        transition: all 0.3s ease;
+        min-height: 200px;
+        box-shadow: 
+            0 4px 6px -1px rgba(0, 0, 0, 0.05),
+            -4px 0 0 0 #a78bfa,
+            -6px 0 0 0 #8b5cf6,
+            -8px 0 0 0 #7c3aed !important;
+    }
+    body.dark-mode .diary-page {
+        background: linear-gradient(135deg, #2d3748 0%, #1e293b 100%);
+        box-shadow: 
+            0 4px 6px -1px rgba(0, 0, 0, 0.2),
+            -4px 0 0 0 #8b5cf6,
+            -6px 0 0 0 #7c3aed,
+            -8px 0 0 0 #6d28d9 !important;
+    }
+    .diary-page:hover {
+        transform: translateY(-5px) rotate(-1deg);
+        box-shadow: 
+            0 12px 20px -5px rgba(139, 92, 246, 0.2),
+            -4px 0 0 0 #a78bfa,
+            -6px 0 0 0 #8b5cf6,
+            -8px 0 0 0 #7c3aed !important;
+    }
+    body.dark-mode .diary-page:hover {
+        box-shadow: 
+            0 12px 20px -5px rgba(0, 0, 0, 0.3),
+            -4px 0 0 0 #8b5cf6,
+            -6px 0 0 0 #7c3aed,
+            -8px 0 0 0 #6d28d9 !important;
+    }
+    .diary-lines {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: repeating-linear-gradient(
+            transparent,
+            transparent 27px,
+            rgba(139, 92, 246, 0.15) 27px,
+            rgba(139, 92, 246, 0.15) 28px
+        );
+        pointer-events: none;
+        border-radius: inherit;
+    }
+    body.dark-mode .diary-lines {
+        background-image: repeating-linear-gradient(
+            transparent,
+            transparent 27px,
+            rgba(139, 92, 246, 0.1) 27px,
+            rgba(139, 92, 246, 0.1) 28px
+        );
+    }
+    .diary-content {
+        position: relative;
+        z-index: 1;
+    }
+    .diary-book-title {
+        color: #7c3aed;
+        max-width: calc(100% - 30px);
+    }
+    body.dark-mode .diary-book-title {
+        color: #c4b5fd;
+    }
+    .diary-text {
+        font-family: 'Georgia', serif;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        max-height: 120px;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+    }
+    .diary-date {
+        font-style: italic;
+    }
+    .diary-delete-btn {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .diary-page:hover .diary-delete-btn {
+        opacity: 1;
+    }
+
+    /* Modal Improvements */
+    #diaryModal .form-control {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+    }
+    #diaryModal .form-control:focus {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+    }
+    body.dark-mode #diaryModal .form-control {
+        background-color: #334155;
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #f8fafc;
+    }
+</style>
 <div id="avatarPopover" class="avatar-popover">
     <div class="d-flex align-items-center gap-2">
         <button id="avatarUseBtn" class="btn btn-sm btn-primary">Usar como avatar</button>
@@ -601,14 +783,16 @@ body:not(.dark-mode) .btn-outline-light:hover {
     const moodColorsMap = {
         'Neutral': '#94a3b8',
         'Romántico': '#ff6b9e',
-        'Intriga y Suspenso': '#ffb74d',
-        'Épico y Aventurero': '#4cc3d9',
-        'Fantasia': '#9b5de5',
-        'Fantasía': '#9b5de5',
         'Misterio': '#0ea5e9',
+        'Intriga y Suspenso': '#0ea5e9', // Legacy
+        'Aventura': '#4cc3d9',
+        'Épico y Aventurero': '#4cc3d9', // Legacy
+        'Fantasía': '#9b5de5',
+        'Fantasia': '#9b5de5',
+        'Terror': '#ef4444',
         'Drama': '#f97316',
-        'Comedia': '#22c55e',
-        'Terror': '#ef4444'
+        'Melancólico': '#f97316', // Legacy
+        'Comedia': '#22c55e'
     };
     const defaultPalette = ['#6f42c1','#22c55e','#ff6b9e','#f59e0b','#4cc3d9','#9b5de5','#0ea5e9','#ef4444','#94a3b8'];
     const colors = labels.map((l, i) => moodColorsMap[l] || defaultPalette[i % defaultPalette.length]);
@@ -742,5 +926,77 @@ body:not(.dark-mode) .btn-outline-light:hover {
         starsContainer.appendChild(star);
     }
 </script>
+<script>
+    // Diary Functions
+    async function saveDiaryEntry() {
+        const bookTitle = document.getElementById('diaryBookTitle').value.trim();
+        const content = document.getElementById('diaryContent').value.trim();
+        
+        if (!bookTitle || !content) {
+            alert('Por favor completa todos los campos');
+            return;
+        }
+
+        try {
+            const res = await fetch('/diary/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ book_title: bookTitle, content: content })
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                // Close modal and reload page to show new entry
+                const modal = bootstrap.Modal.getInstance(document.getElementById('diaryModal'));
+                modal.hide();
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'No se pudo guardar'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+    }
+
+    async function deleteDiaryEntry(id) {
+        if (!confirm('¿Seguro que quieres eliminar esta entrada?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/diary/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                // Remove the entry from DOM with animation
+                const entry = document.querySelector(`[data-entry-id="${id}"]`);
+                if (entry) {
+                    entry.style.transition = 'all 0.3s ease';
+                    entry.style.opacity = '0';
+                    entry.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        entry.closest('.col').remove();
+                        // Check if diary is now empty
+                        const remaining = document.querySelectorAll('.diary-page');
+                        if (remaining.length === 0) {
+                            window.location.reload();
+                        }
+                    }, 300);
+                }
+            } else {
+                alert('Error: ' + (data.error || 'No se pudo eliminar'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

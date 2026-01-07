@@ -64,4 +64,10 @@ class Database
         $stmt->execute($params);
         return $stmt;
     }
+
+    // Get the last inserted ID
+    public function lastInsertId(): string
+    {
+        return $this->pdo->lastInsertId();
+    }
 }
