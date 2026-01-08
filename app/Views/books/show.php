@@ -7,91 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- Leaflet.js for interactive maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <style>
-        /* Premium Character Card Styles */
-        .premium-char-card {
-            position: relative;
-            border-radius: 20px;
-            overflow: hidden;
-            background: var(--card-bg, #1e293b);
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            height: 100%;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-        .premium-char-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px -5px rgba(99, 102, 241, 0.3);
-            border-color: rgba(99, 102, 241, 0.5);
-            z-index: 5;
-        }
-        .premium-char-img-wrapper {
-            position: relative;
-            width: 100%;
-            padding-top: 140%; /* Portrait Aspect Ratio */
-            overflow: hidden;
-        }
-        .premium-char-img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.7s ease;
-        }
-        .premium-char-card:hover .premium-char-img {
-            transform: scale(1.1);
-        }
-        .premium-char-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.6) 70%, transparent 100%);
-            padding: 2rem 1.25rem 1.25rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-        .premium-char-name {
-            color: white;
-            font-weight: 800;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            letter-spacing: -0.02em;
-        }
-        .premium-char-role {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-        .premium-char-traits {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-        }
-        .premium-trait-pill {
-            font-size: 0.65rem;
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
 
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translate3d(0, 20px, 0); }
-            to { opacity: 1; transform: translate3d(0, 0, 0); }
-        }
-        .fade-in-up {
-            animation: fadeInUp 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
-        }
 
         .blur-content {
             filter: blur(8px);
@@ -206,148 +126,7 @@
         transform: scale(1.05);
     }
 
-        /* --- Old Styles for Header & Characters --- */
-        .book-header { 
-            position: relative; 
-            padding-top: 3rem;
-            padding-bottom: 3rem;
-        }
-        .book-title-glow {
-            font-weight: 800;
-            color: white;
-            text-shadow: 0 0 10px rgba(167, 139, 250, 1), 0 0 20px rgba(167, 139, 250, 0.5);
-            /* Ensure visibility on light backgrounds via the glow */
-        }
-        
-        /* Darker shadow for light mode to improve visibility */
-        body:not(.dark-mode) .book-title-glow {
-            text-shadow: 0 0 10px rgba(124, 58, 237, 1), 0 0 20px rgba(124, 58, 237, 0.8), 0 0 30px rgba(124, 58, 237, 0.6);
-        }
 
-        .back-nav {
-            position: fixed;
-            top: 100px;
-            left: 20px;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 45px;
-            height: 45px;
-            padding: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.9);
-            color: #1e293b;
-            text-decoration: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-            border: 1px solid rgba(0,0,0,0.05);
-            font-size: 1.2rem;
-        }
-        body.dark-mode .back-nav {
-            background: rgba(30, 41, 59, 0.8);
-            color: #f8fafc;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(8px);
-        }
-        .back-nav:hover {
-            transform: translateX(-4px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-            color: #1e293b;
-        }
-        body.dark-mode .back-nav:hover {
-            color: #f8fafc;
-        }
-        .character-card { 
-            position: relative;
-            min-height: 320px;
-            background-color: var(--card-bg);
-            background-size: cover;
-            background-position: center;
-            border: 1px solid var(--card-border);
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .character-card:hover { 
-            transform: translateY(-8px); 
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2) !important; 
-        }
-        .character-placeholder {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 5rem;
-            color: var(--text-muted);
-            background: linear-gradient(135deg, rgba(100,100,100,0.05), rgba(150,150,150,0.05));
-            opacity: 0.3;
-        }
-        .character-info-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 1.5rem 1rem 1rem;
-            background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 60%, transparent 100%);
-            color: white;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-        .generate-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 20;
-            opacity: 0;
-            transition: all 0.3s ease;
-            transform: translateY(-10px);
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            color: #4f46e5;
-            font-weight: 600;
-        }
-        .character-card:hover .generate-btn {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .generate-btn:hover {
-            background: #fff;
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .blur-content {
-            filter: blur(6px);
-            user-select: none;
-            opacity: 0.7;
-        }
-        .locked-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(100, 100, 100, 0.1);
-            backdrop-filter: blur(2px);
-            z-index: 10;
-        }
-        .locked-badge {
-            background: var(--primary-gradient);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
         }
@@ -537,6 +316,55 @@
             color: white !important;
         }
 
+
+
+        /* Detail Page Back Navigation */
+        .book-header {
+            position: relative;
+        }
+        .back-nav {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            color: #334155;
+            text-decoration: none !important;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 100;
+            font-size: 1.25rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .back-nav:hover {
+            transform: translateX(-5px) scale(1.05);
+            background: white;
+            color: #6366f1;
+            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.2);
+        }
+        body.dark-mode .back-nav {
+            background: rgba(30, 41, 59, 0.8);
+            color: #cbd5e1;
+            border-color: rgba(255,255,255,0.1);
+        }
+        body.dark-mode .back-nav:hover {
+            background: #1e293b;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .back-nav {
+                top: 15px;
+                left: 15px;
+                width: 38px;
+                height: 38px;
+            }
+        }
 
     </style>
 </head>
@@ -761,7 +589,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
             </div>
         </div>
 
-        <!-- Characters Col -->
+        <!-- Synopsis Col -->
         <div class="col-md-8 order-1 order-md-2">
             <div class="card shadow-sm mb-4 border-0">
                 <div class="card-body">
@@ -770,7 +598,29 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 </div>
             </div>
 
-            <!-- Characters Section (Removed per user request) -->
+            <!-- Interactive Literary Map -->
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-body">
+                    <h5><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Mapa Literario</h5>
+                    <p class="text-muted small mb-3">Explora los lugares donde transcurre la historia</p>
+                    
+                    <div id="map-container" style="height: 400px; border-radius: 12px; overflow: hidden; position: relative;">
+                        <!-- Loading State -->
+                        <div id="map-loader" class="d-flex flex-column align-items-center justify-content-center h-100 bg-light">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <span class="text-muted">Generando mapa de ubicaciones...</span>
+                        </div>
+                        <!-- Map will be rendered here -->
+                        <div id="book-map" style="height: 100%; width: 100%; display: none;"></div>
+                        <!-- Error State -->
+                        <div id="map-error" class="d-none text-center p-4">
+                            <i class="bi bi-exclamation-triangle text-warning fs-1 mb-3"></i>
+                            <p class="text-muted" id="map-error-msg">No se pudo cargar el mapa</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
     </div>
 </div>
@@ -782,15 +632,9 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 
     document.addEventListener('DOMContentLoaded', () => {
         checkPlaylistLoad();
-        checkCharactersLoad();
     });
 
-    function checkCharactersLoad() {
-        const loader = document.getElementById('characters-loader');
-        if (loader) {
-            generateCharacters();
-        }
-    }
+
 
 
 
@@ -901,40 +745,115 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         });
     }
 
-    function generateCharacters(btn = null) {
-        let originalContent = '';
-        if (btn) {
-            originalContent = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generando...';
-            btn.disabled = true;
-        }
-        
-        fetch('/books/generate-characters', {
+    // ========== LITERARY MAP ==========
+    function loadBookMap() {
+        const mapContainer = document.getElementById('book-map');
+        const loader = document.getElementById('map-loader');
+        const errorDiv = document.getElementById('map-error');
+        const errorMsg = document.getElementById('map-error-msg');
+
+        if (!mapContainer) return;
+
+        fetch('/books/generate-map', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ book_id: BOOK_ID })
         })
         .then(r => r.json())
         .then(data => {
-            if (data.ok) {
-                window.location.reload();
+            if (data.ok && data.map) {
+                renderMap(data.map);
             } else {
-                alert('Error: ' + (data.error || 'Unknown error'));
-                if (btn) {
-                    btn.innerHTML = originalContent;
-                    btn.disabled = false;
-                }
+                showMapError(data.error || 'No se pudo generar el mapa');
             }
         })
         .catch(err => {
-            console.error(err);
-            alert('Error de conexión');
-            if (btn) {
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
-            }
+            console.error('Map load error:', err);
+            showMapError('Error de conexión al cargar el mapa');
         });
     }
+
+    function renderMap(mapData) {
+        const mapContainer = document.getElementById('book-map');
+        const loader = document.getElementById('map-loader');
+
+        if (!mapData.map_config || !mapData.markers) {
+            showMapError('Datos del mapa incompletos');
+            return;
+        }
+
+        const config = mapData.map_config;
+        const markers = mapData.markers;
+
+        // Hide loader, show map
+        loader.style.display = 'none';
+        mapContainer.style.display = 'block';
+
+        // Initialize Leaflet map
+        const map = L.map('book-map').setView(
+            [config.center_coordinates.lat, config.center_coordinates.lng],
+            config.zoom_level || 12
+        );
+
+        // Add tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Custom marker icon
+        const bookIcon = L.divIcon({
+            className: 'custom-book-marker',
+            html: '<div style="background: linear-gradient(135deg, #6366f1, #a855f7); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99,102,241,0.4);"><i class="bi bi-book-fill" style="color: white; font-size: 14px;"></i></div>',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        // Add markers
+        markers.forEach(marker => {
+            if (marker.coordinates && marker.coordinates.lat && marker.coordinates.lng) {
+                const m = L.marker(
+                    [marker.coordinates.lat, marker.coordinates.lng],
+                    { icon: bookIcon }
+                ).addTo(map);
+
+                m.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <h6 style="margin: 0 0 8px 0; font-weight: 700; color: #1e293b;">${marker.title}</h6>
+                        <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.4;">${marker.snippet}</p>
+                    </div>
+                `);
+            }
+        });
+
+        // Add region name as overlay
+        if (config.region_name) {
+            const regionLabel = L.control({ position: 'topright' });
+            regionLabel.onAdd = function() {
+                const div = L.DomUtil.create('div', 'region-label');
+                div.innerHTML = `<div style="background: white; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-weight: 600; color: #1e293b;"><i class="bi bi-geo me-2"></i>${config.region_name}</div>`;
+                return div;
+            };
+            regionLabel.addTo(map);
+        }
+    }
+
+    function showMapError(message) {
+        const loader = document.getElementById('map-loader');
+        const errorDiv = document.getElementById('map-error');
+        const errorMsg = document.getElementById('map-error-msg');
+
+        loader.style.display = 'none';
+        errorDiv.classList.remove('d-none');
+        errorMsg.textContent = message;
+    }
+
+    // Load map when page is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        loadBookMap();
+    });
+
+
 
 
 </script>

@@ -6,7 +6,7 @@ class MoodAnalyzer
 {
     private $apiKey;
     // Using Gemini 1.5 Flash for speed and efficiency
-    private $apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    private $apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     private array $moodArtists = [
         'Romántico' => ['Taylor Swift', 'Ed Sheeran', 'Adele', 'Bruno Mars', 'John Legend', 'Sam Smith', 'Ariana Grande', 'Lana Del Rey', 'Rosalía', 'Camilo'],

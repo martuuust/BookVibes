@@ -38,7 +38,7 @@ $router->post('/books/storeUpload', [App\Controllers\BookController::class, 'sto
 // AJAX Generation Routes
 $router->post('/books/generate-playlist', [App\Controllers\BookController::class, 'apiGeneratePlaylist']);
 $router->post('/books/regenerate-playlist', [App\Controllers\BookController::class, 'apiRegeneratePlaylist']);
-$router->post('/books/generate-characters', [App\Controllers\BookController::class, 'generateCharacters']);
+$router->post('/books/generate-map', [App\Controllers\BookController::class, 'apiGenerateMap']);
 
 $router->get('/spotify/connect', [App\Controllers\BookController::class, 'spotifyConnect']);
 $router->get('/spotify/callback', [App\Controllers\BookController::class, 'spotifyCallback']);

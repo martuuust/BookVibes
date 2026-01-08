@@ -474,7 +474,6 @@ class BookController extends Controller
 
         return $this->render('books/show', [
             'book' => $book,
-            'characters' => [],
             'playlist' => $playlist,
             'spotify_configured' => $spotifyConfigured,
             'pro_enabled' => !empty($_SESSION['pro']) && $_SESSION['pro']
@@ -1061,6 +1060,70 @@ class BookController extends Controller
             'diary_entries' => $diaryEntries,
             'isPro' => !empty($_SESSION['pro']) && $_SESSION['pro']
         ]);
+    }
+
+    /**
+     * Generate interactive map data for a book using Gemini AI
+     */
+    public function apiGenerateMap(Request $request)
+    {
+        // Prevent PHP warnings/errors from breaking JSON
+        if (ob_get_length()) ob_clean();
+        
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        $body = $request->getBody();
+        $bookId = $body['book_id'] ?? null;
+        
+        if (!$bookId) {
+            return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
+        }
+        
+        $book = Book::find($bookId);
+        if (!$book) {
+            return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
+        }
+        
+        // Check if map data is cached in the database
+        $db = \App\Core\Database::getInstance();
+        
+        // Ensure map_data column exists
+        try {
+            $col = $db->query("SHOW COLUMNS FROM books LIKE 'map_data'")->fetch();
+            if (!$col) {
+                $db->query("ALTER TABLE books ADD COLUMN map_data TEXT NULL");
+            }
+        } catch (\Exception $e) {}
+        
+        // Check for cached map data
+        $cached = $db->query("SELECT map_data FROM books WHERE id = ?", [$bookId])->fetch();
+        if (!empty($cached['map_data'])) {
+            $mapData = json_decode($cached['map_data'], true);
+            if ($mapData) {
+                return $this->json(['ok' => true, 'map' => $mapData]);
+            }
+        }
+        
+        // Generate new map data using BookMapService
+        try {
+            $mapService = new \App\Services\BookMapService();
+            $mapData = $mapService->generateMapData(
+                $book['title'] ?? '',
+                $book['author'] ?? ''
+            );
+            
+            if (!$mapData) {
+                return $this->json(['ok' => false, 'error' => 'No se pudo generar el mapa. Verifica tu GEMINI_API_KEY.'], 500);
+            }
+            
+            // Cache the result
+            $db->query("UPDATE books SET map_data = ? WHERE id = ?", [json_encode($mapData), $bookId]);
+            
+            return $this->json(['ok' => true, 'map' => $mapData]);
+            
+        } catch (\Exception $e) {
+            return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
 
