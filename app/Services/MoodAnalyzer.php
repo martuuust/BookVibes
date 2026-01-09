@@ -4,9 +4,15 @@ namespace App\Services;
 
 class MoodAnalyzer
 {
-    private $apiKey;
-    // Using Gemini 1.5 Flash for speed and efficiency
-    private $apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private $geminiKey;
+    private $groqKey;
+    
+    // Primary: Gemini
+    private $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    
+    // Secondary: Groq
+    private $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
+    private $groqModel = 'llama3-70b-8192';
 
     private array $moodArtists = [
         'Romántico' => ['Taylor Swift', 'Ed Sheeran', 'Adele', 'Bruno Mars', 'John Legend', 'Sam Smith', 'Ariana Grande', 'Lana Del Rey', 'Rosalía', 'Camilo'],
@@ -21,8 +27,8 @@ class MoodAnalyzer
 
     public function __construct()
     {
-        // Load Gemini Key
-        $this->apiKey = getenv('GEMINI_API_KEY') ?: ($_ENV['GEMINI_API_KEY'] ?? null);
+        $this->geminiKey = getenv('GEMINI_API_KEY') ?: ($_ENV['GEMINI_API_KEY'] ?? null);
+        $this->groqKey = getenv('GROQ_API_KEY') ?: ($_ENV['GROQ_API_KEY'] ?? null);
     }
     
     public function getPreferredArtistsForMood(string $mood): array
@@ -32,17 +38,17 @@ class MoodAnalyzer
 
     public function analyze(array $bookData): array
     {
-        // Try AI Analysis first
-        if (!empty($this->apiKey)) {
+        // Try AI Analysis (Primary + Secondary Fallback)
+        if (!empty($this->geminiKey) || !empty($this->groqKey)) {
             try {
                 return $this->analyzeWithAI($bookData);
             } catch (\Exception $e) {
-                // error_log("Gemini Error: " . $e->getMessage());
+                // error_log("All AI Services Failed: " . $e->getMessage());
                 // Fallback silently to keywords
             }
         }
 
-        // Local Keyword Logic (Fallback)
+        // Local Keyword Logic (Tertiary Fallback)
         $text = ($bookData['synopsis'] ?? '') . ' ' . implode(' ', $bookData['keywords'] ?? []);
         $text = strtolower($text);
 
@@ -160,20 +166,43 @@ class MoodAnalyzer
             ]
         }";
 
-        $response = $this->callGemini($prompt);
+        $content = '';
+        $usedService = '';
+
+        // 1. Primary: Gemini
+        if (!empty($this->geminiKey)) {
+            try {
+                $response = $this->callGemini($prompt);
+                $content = $response['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                $usedService = 'gemini';
+            } catch (\Exception $e) {
+                // Ignore, try fallback
+            }
+        }
+
+        // 2. Secondary: Groq (if Gemini failed or no key)
+        if (empty($content) && !empty($this->groqKey)) {
+            try {
+                $response = $this->callGroq($prompt);
+                $content = $response['choices'][0]['message']['content'] ?? '';
+                $usedService = 'groq';
+            } catch (\Exception $e) {
+               // Both failed
+            }
+        }
         
-        // Parse Gemini Response Structure
-        // response['candidates'][0]['content']['parts'][0]['text']
-        $content = $response['candidates'][0]['content']['parts'][0]['text'] ?? '';
-        
+        if (empty($content)) {
+            throw new \Exception("All AI services failed to return content");
+        }
+
         // Sanitize JSON (remove markdown ticks if present)
-        $content = preg_replace('/^```json/', '', $content);
-        $content = preg_replace('/```$/', '', $content);
+        $content = preg_replace('/^```json\s*/', '', $content);
+        $content = preg_replace('/\s*```$/', '', $content);
         $content = trim($content);
         
         $data = json_decode($content, true);
         
-        if (empty($data) || empty($data['songs'])) throw new \Exception("Invalid AI Response");
+        if (empty($data) || empty($data['songs'])) throw new \Exception("Invalid AI Response ($usedService)");
 
         $mood = in_array($data['mood'] ?? '', $validMoods) ? $data['mood'] : 'Neutral';
         $songs = $data['songs'];
@@ -200,45 +229,60 @@ class MoodAnalyzer
 
     private function callGemini($prompt)
     {
-        $url = $this->apiUrlBase . "?key=" . $this->apiKey;
-
+        $url = $this->geminiUrl . "?key=" . $this->geminiKey;
         $data = [
             "contents" => [
-                [
-                    "parts" => [
-                        ["text" => $prompt]
-                    ]
-                ]
+                ["parts" => [["text" => $prompt]]]
             ],
-            // Request strictly JSON if possible, but standard parsing works too
-            "generationConfig" => [
-                "response_mime_type" => "application/json"
-            ]
+            "generationConfig" => ["response_mime_type" => "application/json"]
         ];
 
+        return $this->executeCurl($url, $data, ['Content-Type: application/json']);
+    }
+
+    private function callGroq($prompt)
+    {
+        $data = [
+            "model" => $this->groqModel,
+            "messages" => [
+                ["role" => "system", "content" => "You are a music and literary expert that outputs JSON only."],
+                ["role" => "user", "content" => $prompt]
+            ],
+            "response_format" => ["type" => "json_object"], 
+            "temperature" => 0.7
+        ];
+
+        return $this->executeCurl($this->groqUrl, $data, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->groqKey
+        ]);
+    }
+
+    private function executeCurl(string $url, array $data, array $headers): array
+    {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
         $result = curl_exec($ch);
-        if (curl_errno($ch)) {
-            throw new \Exception('Curl error: ' . curl_error($ch));
-        }
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_errno($ch)) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new \Exception("Curl Error: $err");
+        }
         curl_close($ch);
 
         $json = json_decode($result, true);
-
-        if ($httpCode !== 200) {
-            $errorMsg = $json['error']['message'] ?? "Unknown Error $httpCode";
-            throw new \Exception("Gemini API Error: $errorMsg");
+        if ($httpCode >= 400 || !$json) {
+            $msg = $json['error']['message'] ?? "HTTP $httpCode";
+            throw new \Exception("API Error: $msg");
         }
-
         return $json;
     }
 

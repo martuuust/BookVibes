@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Request;
+use App\Core\Logger;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -20,9 +21,20 @@ class AuthController extends Controller
                 $_SESSION['user_name'] = $user->username;
                 $_SESSION['account_type'] = $user->account_type;
                 $_SESSION['pro'] = ($user->account_type === 'Pro');
+                
+                Logger::auth('Login', true, [
+                    'user_id' => $user->id,
+                    'email' => $body['email']
+                ]);
+                
                 header('Location: /dashboard');
                 exit;
             }
+            
+            Logger::auth('Login', false, [
+                'email' => $body['email'],
+                'reason' => $user ? 'password_mismatch' : 'user_not_found'
+            ]);
             
             return $this->render('auth/login', ['error' => 'Credenciales inválidas']);
         }
@@ -41,9 +53,20 @@ class AuthController extends Controller
             
             try {
                 $user->save();
+                
+                Logger::auth('Register', true, [
+                    'email' => $body['email'],
+                    'username' => $body['username']
+                ]);
+                
                 header('Location: /login');
                 exit;
             } catch (\Exception $e) {
+                Logger::auth('Register', false, [
+                    'email' => $body['email'],
+                    'error' => $e->getMessage()
+                ]);
+                
                 return $this->render('auth/register', ['error' => 'Error al registrar: ' . $e->getMessage()]);
             }
         }
@@ -54,7 +77,14 @@ class AuthController extends Controller
     public function logout()
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
+        
+        $userId = $_SESSION['user_id'] ?? null;
+        
         session_destroy();
+        
+        Logger::auth('Logout', true, ['user_id' => $userId]);
+        
         header('Location: /');
     }
 }
+

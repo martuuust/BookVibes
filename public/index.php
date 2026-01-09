@@ -5,9 +5,13 @@ require_once __DIR__ . '/../app/autoload.php';
 use App\Core\Router;
 use App\Core\Request;
 use App\Core\Env;
+use App\Core\ErrorLogger;
 
 // Load Environment Variables
 Env::load(__DIR__ . '/../.env');
+
+// Register Global Error Handlers (captures ALL errors to /logs)
+ErrorLogger::registerGlobalHandlers();
 
 // Auto-Install Database if missing
 try { App\Core\Installer::checkAndInstall(); } catch (\Throwable $e) {}

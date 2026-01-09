@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Database;
+use App\Core\Logger;
 use App\Services\ScraperService;
 use App\Services\MoodAnalyzer;
 use App\Services\YouTubeSearchService;
@@ -75,7 +76,10 @@ class BookController extends Controller
         
         $query = $request->getBody()['query'] ?? '';
         
+        Logger::info("Búsqueda de libro iniciada", ['query' => $query, 'user_id' => $userId]);
+        
         if (empty($query)) {
+            Logger::warning("Búsqueda vacía", ['user_id' => $userId]);
             return $this->render('books/search', ['error' => 'Please enter a book title']);
         }
 
@@ -83,8 +87,11 @@ class BookController extends Controller
         $scraper = new ScraperService();
         $bookData = $scraper->scrapeBook($query);
         if (!$bookData) {
+            Logger::warning("Libro no encontrado", ['query' => $query]);
             return $this->render('books/search', ['error' => 'No se encontró una sinopsis oficial para este libro en fuentes verificables. Intenta el título exacto o añade el autor.']);
         }
+        
+        Logger::info("Libro encontrado", ['title' => $bookData['title'] ?? $query, 'author' => $bookData['author'] ?? 'Unknown']);
         
         // 2. Analyze Mood Only (Fast, local keywords)
         $moodAnalyzer = new MoodAnalyzer();
@@ -94,7 +101,7 @@ class BookController extends Controller
         // 3. Save Basic Info to DB
         $bookId = Book::create($bookData);
         
-
+        Logger::info("Libro guardado en DB", ['book_id' => $bookId, 'title' => $bookData['title'] ?? $query]);
         
         // Add to User's list (UserBook relation)
         $added = \App\Models\UserBook::add($userId, $bookId);
@@ -103,6 +110,7 @@ class BookController extends Controller
         if ($added && $userId > 0) {
             $gamification = new \App\Services\GamificationService();
             $gamification->awardPoints($userId, 'add_book', 10);
+            Logger::info("Puntos otorgados por añadir libro", ['user_id' => $userId, 'points' => 10]);
         }
         
         header("Location: /books/show?id=$bookId");
@@ -1063,7 +1071,7 @@ class BookController extends Controller
     }
 
     /**
-     * Generate interactive map data for a book using Gemini AI
+     * Generate interactive map data for a book using AI
      */
     public function apiGenerateMap(Request $request)
     {
@@ -1074,6 +1082,7 @@ class BookController extends Controller
         
         $body = $request->getBody();
         $bookId = $body['book_id'] ?? null;
+        $forceRegenerate = !empty($body['force_regenerate']);
         
         if (!$bookId) {
             return $this->json(['ok' => false, 'error' => 'No book ID provided'], 400);
@@ -1081,8 +1090,15 @@ class BookController extends Controller
         
         $book = Book::find($bookId);
         if (!$book) {
+            Logger::warning("Mapa solicitado para libro inexistente", ['book_id' => $bookId]);
             return $this->json(['ok' => false, 'error' => 'Book not found'], 404);
         }
+        
+        Logger::info("Generando mapa literario", [
+            'book_id' => $bookId,
+            'title' => $book['title'] ?? 'Unknown',
+            'force_regenerate' => $forceRegenerate
+        ]);
         
         // Check if map data is cached in the database
         $db = \App\Core\Database::getInstance();
@@ -1095,36 +1111,49 @@ class BookController extends Controller
             }
         } catch (\Exception $e) {}
         
-        // Check for cached map data
-        $cached = $db->query("SELECT map_data FROM books WHERE id = ?", [$bookId])->fetch();
-        if (!empty($cached['map_data'])) {
-            $mapData = json_decode($cached['map_data'], true);
-            if ($mapData) {
-                return $this->json(['ok' => true, 'map' => $mapData]);
+        // Check for cached map data (unless force regenerate)
+        if (!$forceRegenerate) {
+            $cached = $db->query("SELECT map_data FROM books WHERE id = ?", [$bookId])->fetch();
+            if (!empty($cached['map_data'])) {
+                $mapData = json_decode($cached['map_data'], true);
+                if ($mapData) {
+                    Logger::debug("Mapa obtenido de caché", ['book_id' => $bookId]);
+                    return $this->json(['ok' => true, 'map' => $mapData, 'cached' => true]);
+                }
             }
         }
         
         // Generate new map data using BookMapService
         try {
             $mapService = new \App\Services\BookMapService();
+            
+            // Pass title, author, AND synopsis for better context
+            $synopsis = $book['synopsis'] ?? $book['description'] ?? '';
+            
             $mapData = $mapService->generateMapData(
                 $book['title'] ?? '',
-                $book['author'] ?? ''
+                $book['author'] ?? '',
+                $synopsis
             );
             
             if (!$mapData) {
-                return $this->json(['ok' => false, 'error' => 'No se pudo generar el mapa. Verifica tu GEMINI_API_KEY.'], 500);
+                Logger::error("Fallo al generar mapa", ['book_id' => $bookId, 'title' => $book['title'] ?? '']);
+                return $this->json(['ok' => false, 'error' => 'No se pudo generar el mapa. Verifica tus API keys.'], 500);
             }
             
             // Cache the result
             $db->query("UPDATE books SET map_data = ? WHERE id = ?", [json_encode($mapData), $bookId]);
             
-            return $this->json(['ok' => true, 'map' => $mapData]);
+            Logger::info("Mapa generado y cacheado", [
+                'book_id' => $bookId,
+                'markers' => count($mapData['markers'] ?? [])
+            ]);
+            
+            return $this->json(['ok' => true, 'map' => $mapData, 'cached' => false]);
             
         } catch (\Exception $e) {
+            Logger::exception($e, 'apiGenerateMap');
             return $this->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
-
-
 }
