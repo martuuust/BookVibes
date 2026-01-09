@@ -8,11 +8,11 @@ class MoodAnalyzer
     private $groqKey;
     
     // Primary: Gemini
-    private $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
     
     // Secondary: Groq
     private $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    private $groqModel = 'llama3-70b-8192';
+    private $groqModel = 'llama-3.3-70b-versatile';
 
     private array $moodArtists = [
         'Romántico' => ['Taylor Swift', 'Ed Sheeran', 'Adele', 'Bruno Mars', 'John Legend', 'Sam Smith', 'Ariana Grande', 'Lana Del Rey', 'Rosalía', 'Camilo'],

@@ -366,6 +366,26 @@
             }
         }
 
+        /* Title Visibility in Light Mode */
+        body:not(.dark-mode) .book-title-glow {
+            color: #ffffff; 
+            /* Dark Purple Border */
+            -webkit-text-stroke: 2px #2e1065; 
+            /* Neon Glow + Hard Shadow */
+            text-shadow: 
+                3px 3px 0px #2e1065, /* Depth shadow */
+                0 0 10px #a855f7,    /* Inner Neon Glow */
+                0 0 20px #a855f7,    /* Outer Neon Glow */
+                0 0 40px #7e22ce;    /* Far Glow */
+            paint-order: stroke fill;
+        }
+        
+        /* Optional: Dark mode style if it needs enhancements, currently inherit or unchanged */
+        body.dark-mode .book-title-glow {
+             color: var(--text-main);
+             text-shadow: 0 0 20px rgba(139, 92, 246, 0.5); /* Soft purple glow for dark mode */
+        }
+
     </style>
 </head>
 <body>
@@ -632,6 +652,17 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         <div style="width: 40px;"></div> <!-- Spacer -->
     </div>
 
+    <!-- Fictional Location Alert Banner -->
+    <div id="fs-fictional-alert" class="position-absolute start-50 translate-middle-x d-none" style="z-index: 2000; top: 90px; width: 90%; max-width: 400px;">
+        <div class="alert alert-light shadow-lg border-0 rounded-4 px-4 py-3 d-flex align-items-center" style="background: rgba(255,255,255,0.95); backdrop-filter: blur(5px);">
+            <i class="bi bi-stars fs-3 me-3 text-primary"></i>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">Escenario de Fantasía</h6>
+                <small class="text-secondary" style="font-size: 0.85rem; line-height: 1.2; display: block;">Esta historia ocurre en lugares ficticios. El mapa muestra la región real de inspiración.</small>
+            </div>
+        </div>
+    </div>
+
     <!-- Map Container -->
     <div id="fs-map-container"></div>
     
@@ -641,18 +672,58 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         <div class="bg-white px-3 py-1 rounded shadow-sm text-primary fw-bold">Generando cartografía...</div>
     </div>
 
-    <!-- Bottom Sheet -->
-    <div id="fs-bottom-sheet" class="fs-bottom-sheet">
+    <!-- Side Panel (formerly Bottom Sheet) -->
+    <div id="fs-bottom-sheet" class="fs-side-panel">
         <div class="sheet-handle"></div>
         <div id="sheet-content" class="p-4 pt-1">
             <span id="sheet-chapter" class="badge bg-primary bg-opacity-10 text-primary mb-2">Capítulo</span>
-            <h4 id="sheet-title" class="fw-bold mb-2">Título del Lugar</h4>
-            <p id="sheet-desc" class="text-muted mb-4">Descripción del evento...</p>
-            <button class="btn btn-primary w-100 rounded-pill py-3 fw-bold">
-                <i class="bi bi-book me-2"></i>Ver contexto
+            <span id="sheet-fictional-badge" class="badge bg-purple bg-opacity-10 text-purple mb-2 ms-2 d-none" style="background-color: rgba(147, 51, 234, 0.1); color: #9333ea;">
+                <i class="bi bi-stars me-1"></i>Ubicación Ficticia
+            </span>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h4 id="sheet-title" class="fw-bold mb-0 location-title-glow">Título del Lugar</h4>
+                <!-- Google Maps Link -->
+                <a id="sheet-gmaps-link" href="#" target="_blank" class="btn btn-outline-secondary btn-sm rounded-circle" data-bs-toggle="tooltip" title="Ver en Google Maps">
+                    <i class="bi bi-geo-alt"></i>
+                </a>
+            </div>
+            
+            <p id="sheet-desc" class="text-secondary fw-medium mb-4">Descripción del evento...</p>
+            
+            <!-- Coordinates Display -->
+            <div class="mb-3 d-flex align-items-center text-muted small">
+                <i class="bi bi-compass coordinates-icon"></i>
+                <span id="sheet-coords">0.0000, 0.0000</span>
+            </div>
+
+            <button onclick="openContextModal()" class="btn btn-action-primary w-100 rounded-pill py-3 fw-bold shadow-sm">
+                <i class="bi bi-book-half me-2"></i>Leer fragmento del libro
             </button>
         </div>
     </div>
+</div>
+
+<!-- Context Modal -->
+<div class="modal fade" id="contextModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden;">
+      <div class="modal-header border-0 bg-primary bg-opacity-10">
+        <h5 class="modal-title fw-bold text-primary"><i class="bi bi-bookmark-star-fill me-2"></i>Contexto Literario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <h5 id="modal-place-title" class="fw-bold text-dark mb-3">Lugar</h5>
+        <div class="p-3 bg-light rounded-3 border border-light">
+            <p id="modal-context-text" class="fst-italic text-secondary mb-0" style="font-family: 'Merriweather', serif; line-height: 1.8;">
+                "Aquí aparecerá el texto o descripción detallada del momento en el libro..."
+            </p>
+        </div>
+        <div class="mt-3 text-end">
+            <span id="modal-chapter-badge" class="badge bg-secondary">Capítulo</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -706,24 +777,121 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         /* A slightly cooler, more modern look */
     }
 
-    /* Bottom Sheet */
-    .fs-bottom-sheet {
+    /* Side Panel for Map Details */
+    .fs-side-panel {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: white;
-        border-top-left-radius: 24px;
-        border-top-right-radius: 24px;
-        box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        top: auto;
+        bottom: 30px;
+        right: 30px;
+        width: 500px;     /* Increased Width */
+        max-width: 90vw;
+        background: rgba(255, 255, 255, 0.95); /* Light Mode Default */
+        border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.15);
         z-index: 10003;
-        transform: translateY(110%);
-        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        max-height: 50vh;
+        transform: translateX(120%);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s, border-color 0.3s;
+        max-height: calc(100vh - 60px);
         overflow-y: auto;
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
     }
-    .fs-bottom-sheet.active {
-        transform: translateY(0);
+    .fs-side-panel.active {
+        transform: translateX(0);
+    }
+
+    /* Light Mode Texts (Default) */
+    .fs-side-panel h4.location-title-glow {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: #1e293b; /* Dark Slate */
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+    }
+    .fs-side-panel p, .fs-side-panel span, .fs-side-panel div {
+        color: #334155; /* Slate 700 */
+    }
+    .fs-side-panel .text-muted, .fs-side-panel .text-secondary {
+        color: #64748b !important;
+    }
+
+    /* DARK MODE STYLES */
+    body.dark-mode .fs-side-panel {
+        background: rgba(15, 23, 42, 0.95); /* Dark Slate 900 */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    body.dark-mode .fs-side-panel h4.location-title-glow {
+        color: #f8fafc; /* Slate 50 */
+    }
+    body.dark-mode .fs-side-panel p, 
+    body.dark-mode .fs-side-panel span, 
+    body.dark-mode .fs-side-panel div {
+        color: #cbd5e1; /* Slate 300 */
+    }
+    body.dark-mode .fs-side-panel .text-muted,
+    body.dark-mode .fs-side-panel .text-secondary {
+        color: #94a3b8 !important; /* Slate 400 */
+    }
+    body.dark-mode .fs-side-panel .bg-light {
+        background-color: rgba(255,255,255,0.05) !important;
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+    
+    /* Coordinates Icon Styling */
+    .coordinates-icon {
+        font-size: 1.2rem; /* Larger */
+        color: #3b82f6;    /* Bright Blue for visibility */
+        margin-right: 8px;
+    }
+    body.dark-mode .coordinates-icon {
+        color: #60a5fa; /* Lighter Blue in Dark Mode */
+    }
+
+    /* Action Button (Adaptive) */
+    .btn-action-primary {
+        /* Light Mode: Pastel Gradient matching Menu (Cyan -> Purple -> Pink) */
+        background: linear-gradient(90deg, #bae6fd 0%, #e9d5ff 50%, #fbcfe8 100%);
+        color: #1e293b !important; /* Dark Text for breakdown on light pastel */
+        border: 1px solid rgba(255,255,255,0.5);
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .btn-action-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        color: #0f172a !important;
+        filter: brightness(1.05);
+    }
+    .btn-action-primary i {
+        color: #1e293b !important;
+    }
+
+    /* Dark Mode Override for Button */
+    body.dark-mode .btn-action-primary {
+        background: linear-gradient(135deg, #0f172a 0%, #334155 100%); /* Starry Night */
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+    body.dark-mode .btn-action-primary:hover {
+        background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        color: white !important;
+    }
+    body.dark-mode .btn-action-primary i {
+        color: white !important;
+    }
+
+    .fs-side-panel .btn-primary {
+         /* Fallback if class missing */
+         background-color: #0f172a;
+         color: white !important;
+    }
+    
+    .sheet-handle {
+        display: none;
     }
     .sheet-handle {
         width: 40px;
@@ -865,10 +1033,13 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     }
 
     function loadMapData() {
+        // Cache disabled for testing to ensure we get new "is_fictional" flags
+        /*
         if (mapDataCache) {
             renderMapMarkers(mapDataCache);
             return;
         }
+        */
 
         fetch('/books/generate-map', {
             method: 'POST',
@@ -907,6 +1078,18 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         }
 
         // Add Markers
+        // Check for Fictional/Inspiration markers to show alert
+        const hasFictional = markers.some(m => m.is_fictional === true);
+        if (hasFictional) {
+            document.getElementById('fs-fictional-alert').classList.remove('d-none');
+            // Auto hide after 8 seconds
+            setTimeout(() => {
+                document.getElementById('fs-fictional-alert').classList.add('d-none');
+            }, 8000);
+        } else {
+             document.getElementById('fs-fictional-alert').classList.add('d-none');
+        }
+
         markers.forEach(m => {
             if (!m.coordinates || !m.coordinates.lat) return;
 
@@ -956,7 +1139,39 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         else if (marker.location_type === 'discovery') badge.classList.add('bg-warning', 'bg-opacity-10', 'text-warning');
         else badge.classList.add('bg-primary', 'bg-opacity-10', 'text-primary');
 
+        // Handle Fictional Badge
+        const fictionalBadge = document.getElementById('sheet-fictional-badge');
+        if (fictionalBadge) {
+            if (marker.is_fictional === true) {
+                fictionalBadge.classList.remove('d-none');
+            } else {
+                fictionalBadge.classList.add('d-none');
+            }
+        }
+
         sheet.classList.add('active');
+        
+        // Update Coordinates and Google Maps Link
+        const lat = marker.coordinates.lat.toFixed(5);
+        const lng = marker.coordinates.lng.toFixed(5);
+        document.getElementById('sheet-coords').innerText = `${lat}, ${lng}`;
+        document.getElementById('sheet-gmaps-link').href = `https://www.google.com/maps/search/?api=1&query=${marker.coordinates.lat},${marker.coordinates.lng}`;
+        
+        // Save current marker for modal
+        window.currentMarkerContext = marker;
+    }
+    
+    function openContextModal() {
+        const marker = window.currentMarkerContext;
+        if(!marker) return;
+        
+        document.getElementById('modal-place-title').innerText = marker.title;
+        // Use snippet as context text for now, phrased as a quote/excerpt appearance
+        document.getElementById('modal-context-text').innerText = `"${marker.snippet}"`; 
+        document.getElementById('modal-chapter-badge').innerText = marker.chapter_context || 'Referencia';
+        
+        const myModal = new bootstrap.Modal(document.getElementById('contextModal'));
+        myModal.show();
     }
     
     // Close sheet when clicking map

@@ -14,12 +14,12 @@ class BookMapService
     private string $groqKey;
     private string $geminiKey;
     
-    // Primary: Groq (Llama 3)
+    // Primary: Groq (Llama 3.3)
     private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    private string $groqModel = 'llama3-70b-8192';
+    private string $groqModel = 'llama-3.3-70b-versatile';
 
-    // Secondary: Gemini (Flash)
-    private string $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    // Secondary: Gemini (1.5 Flash)
+    private string $geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
     // Store last prompt for logging
     private string $lastPrompt = '';
@@ -63,6 +63,9 @@ class BookMapService
                 $elapsed = round(microtime(true) - $startTime, 2);
                 
                 if ($result) {
+                    // Refine coordinates
+                    $result['markers'] = $this->refineLocations($result['markers']);
+
                     Logger::ai('Groq', 'success', $this->groqModel, [
                         'book' => $title,
                         'markers' => count($result['markers'] ?? []),
@@ -108,33 +111,36 @@ class BookMapService
                 $elapsed = round(microtime(true) - $startTime, 2);
                 
                 if ($result) {
-                    Logger::ai('Gemini', 'success', 'gemini-2.0-flash', [
+                    // Refine coordinates
+                    $result['markers'] = $this->refineLocations($result['markers']);
+
+                    Logger::ai('Gemini', 'success', 'gemini-1.5-flash', [
                         'book' => $title,
                         'markers' => count($result['markers'] ?? []),
                         'time' => "{$elapsed}s"
                     ]);
                     return $result;
                 } else {
-                    Logger::ai('Gemini', 'PARSE_ERROR', 'gemini-2.0-flash', [
+                    Logger::ai('Gemini', 'PARSE_ERROR', 'gemini-1.5-flash', [
                         'book' => $title,
                         'error' => 'Invalid JSON structure'
                     ]);
                     ErrorLogger::logAiError(
                         provider: 'Gemini',
-                        model: 'gemini-2.0-flash',
+                        model: 'gemini-1.5-flash',
                         prompt: $prompt,
                         errorMessage: 'parseResponse returned null - invalid JSON structure',
                         httpStatus: 200
                     );
                 }
             } catch (\Exception $e) {
-                Logger::ai('Gemini', 'FAILED', 'gemini-2.0-flash', [
+                Logger::ai('Gemini', 'FAILED', 'gemini-1.5-flash', [
                     'book' => $title,
                     'error' => $e->getMessage()
                 ]);
                 ErrorLogger::logAiError(
                     provider: 'Gemini',
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-1.5-flash',
                     prompt: $prompt,
                     errorMessage: $e->getMessage(),
                     exception: $e
@@ -277,27 +283,31 @@ CONTEXT;
         return <<<PROMPT
 Eres un experto en geografía literaria y cartografía digital. Analiza el libro "$title" de $author y genera datos para un mapa interactivo.
 $contextBlock
-INSTRUCCIONES CRÍTICAS:
-1. USA COORDENADAS REALES Y PRECISAS de lugares que existen en el mundo real.
-2. Si el libro ocurre en un lugar ficticio (ej: Hogwarts, Tierra Media), usa las coordenadas del lugar de rodaje o inspiración real.
-3. Busca en tu conocimiento los lugares ESPECÍFICOS donde ocurren escenas importantes del libro.
-4. NO inventes coordenadas genéricas. Cada punto debe corresponder a un lugar real verificable.
+INSTRUCCIONES CRÍTICAS DE VERACIDAD GEOGRÁFICA:
+1. **NO INVENTES NADA.** Si el lugar específico (ej: "Tommen High School") es ficticio, el campo "real_world_location" DEBE SER la ciudad o región real donde se inspira la obra (ej: "Cork, Ireland").
+2. **PRIORIDAD DE BÚSQUEDA:**
+   - Si es un lugar real (ej: "Torre Eiffel") -> Usa ese nombre exacto.
+   - Si es un lugar ficticio en una ciudad real -> Usa la CIUDAD ("London, UK").
+   - Si todo es ficticio -> Usa el lugar de rodaje o el país de inspiración.
+3. **EVITA ALUCINACIONES:** No asumas que el nombre del lugar ficticio es también el nombre de la ciudad. (Ej: NO digas "Hogwarts, Hogwarts City").
 
-EJEMPLOS DE PRECISIÓN ESPERADA:
-- "El Gran Gatsby" → West Egg = Great Neck, NY (40.8007, -73.7285)
-- "Harry Potter" → Hogwarts = Alnwick Castle, UK (55.4155, -1.7061)
-- "Orgullo y Prejuicio" → Pemberley = Chatsworth House (53.2270, -1.6115)
+EJEMPLOS CORRECTOS:
+- Ficticio: "Tommen High School" -> Real: "Cork, Ireland" (La ciudad real del libro).
+- Ficticio: "Hogwarts" -> Real: "Alnwick Castle, UK" (Lugar de rodaje).
+- Real: "Central Park" -> Real: "Central Park, New York, US".
 
 Formato JSON OBLIGATORIO:
 {
   "map_config": {
-    "region_name": "Nombre de la región (ej: 'Nueva York, años 1920')",
+    "region_name": "Nombre de la región principal (Ciudad/País)",
     "center_coordinates": { "lat": XX.XXXX, "lng": XX.XXXX },
     "zoom_level": 12
   },
   "markers": [
     {
-      "title": "Nombre del lugar específico",
+      "title": "Nombre del lugar específico (Ficticio o Real)",
+      "real_world_location": "Nombre REAL buscable en mapas (Este campo es CRÍTICO para validar coordenadas)",
+      "is_fictional": true, // true si el lugar exacto no existe y estás usando una ubicación aproximada
       "coordinates": { "lat": XX.XXXX, "lng": XX.XXXX },
       "snippet": "Qué ocurre aquí en el libro (máx 120 caracteres)",
       "chapter_context": "Momento de la historia (ej: 'Capítulo 3', 'Clímax')",
@@ -545,5 +555,111 @@ PROMPT;
                 ]
             ]
         ];
+    }
+    /**
+     * Refine marker locations by verifying with Nominatim Search API
+     */
+    /**
+     * Refine marker locations by verifying with Nominatim Search API
+     * STRICT MODE: If location is not found, it is discarded to avoid "inventing" places.
+     */
+    private function refineLocations(array $markers): array
+    {
+        $refinedMarkers = [];
+        
+        foreach ($markers as $marker) {
+            // Priority 1: Use explicit 'real_world_location' provided by AI
+            // Priority 2: Use title but strip parenthesis like "Hogwarts (Alnwick Castle)"
+            $queryCandidate = $marker['real_world_location'] ?? $marker['title'];
+            
+            // Clean query: remove text in parenthesis if it's the title
+            $cleanQuery = preg_replace('/\s*\(.*?\)\s*/', '', $queryCandidate);
+            
+            if (empty($cleanQuery) || strlen($cleanQuery) < 3) continue;
+
+            // Attempt 1: Strict Search
+            $realCoords = $this->verifyLocationWithNominatim($cleanQuery);
+            
+            if (!$realCoords && isset($marker['real_world_location'])) {
+                // Attempt 2: If we had a specific "real world" field that failed, try just the title as fallback? 
+                // Or maybe the AI gave "City, Country" in title.
+                // Let's try searching for the Location Type context if possible? No.
+                // Try searching removing "The" or simple tweaks?
+            }
+
+            if ($realCoords) {
+                $marker['coordinates'] = $realCoords;
+                $refinedMarkers[] = $marker;
+            } else {
+                // FAILED VERIFICATION.
+                // Do NOT include this marker to avoid "inventing" locations.
+                // Exception: If the AI was extremely confident (we don't know), but user complained about fake locations.
+                // Better to show fewer, accurate markers than many fake ones.
+                Logger::warning("Geocode failed, discarding marker", ['query' => $cleanQuery]);
+            }
+            
+            usleep(1100000); // Respect generic rate limit
+        }
+        
+        // If ALL markers were filtered out (likely a fantasy book with fictional places in a real city)
+        // We reinstate ONE marker as a general "Inspiration" marker to avoid an empty map.
+        if (empty($refinedMarkers) && !empty($markers)) {
+            $baseMarker = $markers[0];
+            $fallbackQuery = $baseMarker['real_world_location'] ?? 'City Center';
+            
+            // Try to find coordinates for the general region/city
+            $fallbackCoords = $this->verifyLocationWithNominatim($fallbackQuery);
+            
+            if (!$fallbackCoords) {
+                // Last ditch: if even the fallback query didn't work, we can't show anything valid.
+                return []; 
+            }
+
+            // Create a general "Atmosphere" marker
+            $refinedMarkers[] = [
+                'title' => "Escenario de Inspiración",
+                'real_world_location' => $fallbackQuery,
+                'is_fictional' => true,
+                'coordinates' => $fallbackCoords,
+                'snippet' => "Esta historia transcurre en lugares ficticios inspirados en esta región. El mapa muestra la ambientación general.",
+                'chapter_context' => "Contexto General",
+                'location_type' => "discovery",
+                'importance' => "high"
+            ];
+            
+            Logger::info("All specific markers discarded. Created fallback inspiration marker.", ['location' => $fallbackQuery]);
+        }
+        
+        return $refinedMarkers;
+    }
+
+    /**
+     * Query Nominatim API for real coordinates
+     */
+    private function verifyLocationWithNominatim(string $query): ?array
+    {
+        $url = "https://nominatim.openstreetmap.org/search?q=" . urlencode($query) . "&format=json&limit=1&addressdetails=1";
+        
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'BookVibesApp/1.0 (Educational Project; contact@example.com)');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode === 200 && $response) {
+            $data = json_decode($response, true);
+            if (!empty($data) && isset($data[0]['lat']) && isset($data[0]['lon'])) {
+                return [
+                    'lat' => (float)$data[0]['lat'],
+                    'lng' => (float)$data[0]['lon']
+                ];
+            }
+        }
+        
+        return null;
     }
 }
