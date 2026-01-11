@@ -150,6 +150,18 @@ body:not(.dark-mode) .btn-outline-light:hover {
     body.dark-mode .avatar-popover { background-color: var(--card-bg); border-color: var(--border-color); color: var(--text-main); }
     body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
 
+    .achievement-pct {
+        color: #374151; /* Dark gray for light mode */
+    }
+    body.dark-mode .achievement-pct {
+        color: #e2e8f0 !important; /* Light gray for dark mode */
+    }
+    .achievements-link {
+        color: #6f42c1;
+    }
+    body.dark-mode .achievements-link {
+        color: #e9d5ff !important; /* Lighter purple for dark mode */
+    }
     .section-title {
         font-weight: 800;
         letter-spacing: -0.5px;
@@ -429,35 +441,75 @@ body:not(.dark-mode) .btn-outline-light:hover {
                             <?php endif; ?>
                         </div>
                         
-                        <?php $inCount = count($inProgress); ?>
+                        <?php $inCount = count($locked); ?>
                         <div class="mb-2">
-                            <a href="#" id="toggleInProgress" class="small text-primary text-decoration-none">
-                                Progreso <?= $inCount > 0 ? '(' . $inCount . ')' : '' ?>
-                            </a>
+                            <button type="button" class="btn btn-link p-0 small text-decoration-none achievements-link" data-bs-toggle="modal" data-bs-target="#achievementsModal">
+                                Ver logros en progreso <?= $inCount > 0 ? '(' . $inCount . ')' : '' ?>
+                            </button>
                         </div>
-                        <div class="achievement-grid" id="inProgressPanel" style="display:none;">
-                            <?php foreach($inProgress as $ach): ?>
-                                <?php 
-                                    $p = (int)($ach['progress'] ?? 0); 
-                                    $req = (int)($ach['points_required'] ?? 0); 
-                                    $cur = min((int)$stats['total_points'], $req); 
-                                    $barColor = ($p >= 75) ? '#198754' : '#6f42c1'; 
-                                ?>
-                                <div class="achievement-badge in-progress" title="<?= htmlspecialchars($ach['name'] ?? '') ?>">
-                                    <span class="achievement-icon icon-inprogress">
-                                        <i class="bi <?= $ach['icon_class'] ?>"></i>
-                                    </span>
-                                    <span class="count-pill"><?= $p ?>%</span>
-                                    <div class="w-100 mt-1">
-                                        <div class="progress achievement-progress">
-                                            <div class="progress-bar" role="progressbar" style="width: <?= $p ?>%; background-color: <?= $barColor ?>;"></div>
-                                        </div>
+                        
+                        <!-- Modal de Logros en Progreso -->
+                        <div class="modal fade" id="achievementsModal" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                <div class="modal-content border-0 shadow-lg" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+                                    <div class="modal-header border-0">
+                                        <h5 class="modal-title fw-bold" style="color: #6f42c1;">
+                                            <i class="bi bi-trophy me-2"></i>Logros por Conseguir
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                                        <?php if(empty($locked)): ?>
+                                            <div class="text-center py-5">
+                                                <i class="bi bi-stars display-1 text-warning mb-3"></i>
+                                                <h3>¡Increíble!</h3>
+                                                <p class="text-muted">Has desbloqueado todos los logros disponibles.</p>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="row g-3">
+                                                <?php foreach($locked as $ach): ?>
+                                                    <?php 
+                                                        $p = (int)($ach['progress'] ?? 0); 
+                                                        $barColor = ($p >= 75) ? '#198754' : (($p >= 25) ? '#6f42c1' : '#c084fc'); 
+                                                    ?>
+                                                    <div class="col-12">
+                                                        <div class="card border-0 shadow-sm hover-scale transition-all">
+                                                            <div class="card-body d-flex align-items-center gap-3">
+                                                                <div class="flex-shrink-0">
+                                                                    <div class="achievement-icon icon-inprogress" style="width: 60px; height: 60px; font-size: 1.8rem;">
+                                                                        <i class="bi <?= $ach['icon_class'] ?>"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-grow-1">
+                                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                        <h6 class="mb-0 fw-bold"><?= htmlspecialchars($ach['name']) ?></h6>
+                                                                        <span class="badge bg-light border achievement-pct"><?= $p ?>%</span>
+                                                                    </div>
+                                                                    <p class="text-muted small mb-2"><?= htmlspecialchars($ach['description']) ?></p>
+                                                                    <div class="progress" style="height: 8px; border-radius: 4px;">
+                                                                        <div class="progress-bar" role="progressbar" style="width: <?= $p ?>%; background-color: <?= $barColor ?>;" aria-valuenow="<?= $p ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                    </div>
+                                                                    <?php if(isset($ach['remaining'])): ?>
+                                                                        <div class="mt-1 d-flex justify-content-end">
+                                                                            <small class="text-muted" style="font-size: 0.75rem;">
+                                                                                <?php if(isset($ach['units_remaining']) && isset($ach['progress_label'])): ?>
+                                                                                    Faltan <?= $ach['units_remaining'] ?> <?= strtolower($ach['progress_label']) ?>
+                                                                                <?php else: ?>
+                                                                                    Faltan <?= $ach['remaining'] ?> puntos
+                                                                                <?php endif; ?>
+                                                                            </small>
+                                                                        </div>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
-                            <?php if(empty($inProgress)): ?>
-                                <div class="text-muted small">No hay logros en progreso.</div>
-                            <?php endif; ?>
+                            </div>
                         </div>
                      </div>
                 </div>
@@ -489,7 +541,7 @@ body:not(.dark-mode) .btn-outline-light:hover {
                     <a href="/books/search" class="btn btn-outline-primary mt-2">Buscar Libros</a>
                 </div>
             <?php else: ?>
-                <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-4">
+                <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3 g-md-4">
                     <?php foreach ($books as $book): ?>
                     <div class="col">
                         <div class="card book-card h-100 shadow-sm">
@@ -542,11 +594,11 @@ body:not(.dark-mode) .btn-outline-light:hover {
                         </a>
                     </div>
                 <?php else: ?>
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
                         <?php foreach ($diary_entries as $entry): ?>
                         <div class="col">
                             <a href="/diary" class="text-decoration-none">
-                                <div class="diary-page card h-100 shadow-sm">
+                                <div class="diary-page card shadow-sm">
                                     <div class="card-body position-relative">
                                         <div class="diary-lines"></div>
                                         <div class="diary-content">
@@ -613,7 +665,6 @@ body:not(.dark-mode) .btn-outline-light:hover {
         border-radius: 4px 16px 16px 4px !important;
         position: relative;
         transition: all 0.3s ease;
-        min-height: 200px;
         box-shadow: 
             0 4px 6px -1px rgba(0, 0, 0, 0.05),
             -4px 0 0 0 #a78bfa,
@@ -678,10 +729,10 @@ body:not(.dark-mode) .btn-outline-light:hover {
         font-family: 'Georgia', serif;
         font-size: 0.95rem;
         line-height: 1.7;
-        max-height: 120px;
+        max-height: 200px;
         overflow: hidden;
         display: -webkit-box;
-        -webkit-line-clamp: 4;
+        -webkit-line-clamp: 8;
         -webkit-box-orient: vertical;
     }
     .diary-date {
@@ -708,6 +759,25 @@ body:not(.dark-mode) .btn-outline-light:hover {
         background-color: #334155;
         border-color: rgba(255, 255, 255, 0.1);
         color: #f8fafc;
+    }
+    
+    /* Mobile Modal Adjustments - Add margins and rounded corners */
+    @media (max-width: 768px) {
+        #achievementsModal .modal-dialog,
+        #diaryModal .modal-dialog {
+            margin: 20px auto; /* Center with vertical margin */
+            max-width: calc(100% - 40px); /* Ensure horizontal spacing */
+            display: flex;
+            align-items: center;
+            min-height: calc(100% - 40px);
+        }
+        
+        #achievementsModal .modal-content,
+        #diaryModal .modal-content {
+            border-radius: 24px !important; /* More rounded like the book */
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        }
     }
 </style>
 <div id="avatarPopover" class="avatar-popover">

@@ -225,15 +225,52 @@
             display: flex;
             transform-style: preserve-3d;
             background: linear-gradient(to right, 
-                #e3d5c5 0%, 
-                #fdfaf7 5%, 
-                #fdfaf7 48%, 
-                #e3d5c5 50%, 
-                #fdfaf7 52%, 
-                #fdfaf7 95%, 
-                #e3d5c5 100%
-            );
+        #e3d5c5 0%, 
+        #fdfaf7 5%, 
+        #fdfaf7 48%, 
+        #e3d5c5 50%, 
+        #fdfaf7 52%, 
+        #fdfaf7 95%, 
+        #e3d5c5 100%
+      );
+    }
+
+    /* Mobile Responsive Styles for Diary */
+    @media (max-width: 991px) {
+        .notebook {
+            width: 100%;
+            height: auto;
+            flex-direction: column;
+            background: #fdfaf7; /* Solid paper color for mobile */
+            transform: none !important; /* Disable 3D on mobile */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
+
+        .page-left, .page-right {
+            width: 100%;
+            padding: 20px;
+            border-right: none;
+            border-bottom: 1px solid #e3d5c5;
+        }
+
+        .page-right {
+            border-bottom: none;
+        }
+
+        .notebook::before {
+            /* Adjust spine for vertical layout or hide it */
+            width: 100%;
+            height: 20px;
+            left: 0;
+            top: 50%; /* Position in middle if we kept it, but easier to hide or restyle */
+            display: none; /* Hide spine on mobile vertical layout */
+        }
+        
+        .container {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+    }
 
         /* Book Cover (Behind) */
         .notebook::before {
@@ -517,7 +554,7 @@
         }
 
         /* Responsive */
-        @media (max-width: 900px) {
+        @media (max-width: 991px) {
             .sidebar {
                 display: none;
             }
@@ -583,10 +620,7 @@
             left: 0;
             background: linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 5%, transparent 100%), #fdfaf7;
         }
-            background-color: #c82333 !important;
-            border-color: #bd2130 !important;
-            color: white !important;
-        }
+        
         .navbar-text-light {
             color: black !important;
         }
@@ -806,21 +840,184 @@
             justify-content: center;
         }
         
-        @media (max-width: 900px) {
+        @media (max-width: 991px) {
+            /* Hide entries panel completely */
+            .entries-panel {
+                display: none !important;
+            }
+
+            /* Full screen layout */
             .diary-layout {
                 flex-direction: column;
+                height: 100vh;
+                height: 100dvh;
+                max-height: 100dvh;
+                overflow: hidden;
+                padding: 0;
+                gap: 0;
             }
-            .entries-panel {
+
+            /* Reset container padding */
+            .container-fluid {
+                padding: 0 !important;
+            }
+
+            /* Notebook wrapper mobile size */
+            .notebook-wrapper {
+                height: 100%;
                 width: 100%;
-                flex-direction: row;
-                overflow-x: auto;
-                padding-bottom: 10px;
+                padding: 40px 15px; /* Add padding for margins */
+                align-items: center;
+                justify-content: center; 
+                perspective: 1500px; /* Enable 3D perspective */
             }
-            .entry-card {
-                min-width: 150px;
+
+            .notebook-container {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                perspective: 1500px;
+                transform-style: preserve-3d;
+            }
+
+            /* Notebook mobile styles - Smaller & Realistic */
+            .notebook {
+                width: 100% !important;
+                max-width: 450px !important; /* Limit width */
+                height: auto !important;
+                min-height: 60vh;
+                max-height: 80vh;
+                margin: 0 auto; /* Center it */
+                flex: 0 0 auto; /* Don't stretch infinitely */
+                border-radius: 12px; /* Rounded corners */
+                box-shadow: 5px 10px 25px rgba(0,0,0,0.2); /* Depth shadow */
+                border: 1px solid #e0e0e0;
+                flex-direction: column;
+                background: #fdfaf7;
+                overflow: hidden; 
+                transform-style: preserve-3d;
+                transform-origin: left center;
+            }
+
+            /* Hide spine elements on mobile */
+            .notebook::after, 
+            .notebook::before,
+            .book-spine-crease {
+                display: none !important;
+            }
+
+            /* Adjust pages for vertical flow */
+            .left-page {
+                flex: 0 0 auto; /* Header shrinks */
+                padding: 20px 20px 5px 20px;
+                border-right: none;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+            }
+
+            .right-page {
+                flex: 1; /* Content fills space */
+                padding: 10px 20px 20px 20px;
+                overflow-y: auto; /* Scroll inside content if needed */
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Content area flexibility */
+            .notebook-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            .diary-textarea {
+                flex: 1;
+                height: 100%;
+                resize: none;
+            }
+
+            /* Compact UI elements */
+            .notebook-icon {
+                display: none;
+            }
+
+            /* Show floating back button */
+            .mobile-back-btn {
+                display: flex !important;
+            }
+            
+            /* Floating new entry button */
+            .mobile-new-btn {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                z-index: 100;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: rgba(0,0,0,0.05);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--text-secondary);
+                border: none;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            
+            .mobile-new-btn:hover {
+                background: rgba(139, 92, 246, 0.1);
+                color: var(--accent-color);
+            }
+
+            .star-rating {
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+
+            .action-buttons {
+                margin-top: 5px;
+                margin-bottom: 10px;
+            }
+            
+            .page-nav {
+                margin-top: 0;
+                padding-top: 10px;
+                border-top: 1px dashed rgba(0,0,0,0.1);
+            }
+            
+            /* Add a floating back button since panel is hidden */
+            .mobile-back-btn {
+                position: absolute;
+                top: 15px;
+                left: 15px;
+                z-index: 100;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: rgba(0,0,0,0.05);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--text-secondary);
+                text-decoration: none;
             }
         }
     </style>
+    
+    <!-- Floating Back Button for Mobile -->
+    <a href="/dashboard" class="mobile-back-btn d-lg-none d-md-none">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    
+    <!-- Floating New Entry Button for Mobile -->
+    <button class="mobile-new-btn d-lg-none d-md-none" onclick="addNewEntry()">
+        <i class="bi bi-plus-lg"></i>
+    </button>
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
@@ -888,9 +1085,9 @@
             const dateStr = formatDate(entry.created_at);
             return `
                 <div class="notebook-header">
-                    <input type="text" class="notebook-title" value="${escapeHtml(entry.book_title)}" readonly
+                    <input type="text" class="notebook-title" id="entryTitle" value="${escapeHtml(entry.book_title)}" 
                            style="border: none; background: transparent; text-align: center; width: 100%; outline: none; font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700; color: var(--text-accent);">
-                    <div class="notebook-date">${dateStr}</div>
+                    <div class="notebook-date" id="entryDate">${dateStr}</div>
                 </div>
             `;
         }
@@ -899,7 +1096,7 @@
             const entry = entries[index];
             return `
                 <div class="notebook-content">
-                    <textarea class="diary-textarea" readonly>${escapeHtml(entry.content)}</textarea>
+                    <textarea class="diary-textarea" id="entryContent">${escapeHtml(entry.content)}</textarea>
                 </div>
                 <div class="notebook-icon">
                     <i class="bi bi-book"></i>
@@ -917,11 +1114,117 @@
                  .replace(/'/g, "&#039;");
         }
 
+        function performMobileTransition(newIndex, direction) {
+            const notebook = document.querySelector('.notebook');
+            const container = document.querySelector('.notebook-container');
+            
+            // Clone current notebook state (Old View)
+            const oldView = notebook.cloneNode(true);
+            
+            // Set up Old View styles for positioning
+            const rect = notebook.getBoundingClientRect();
+            // Since notebook has margin: auto, we need to be careful with positioning.
+            // Best is to append to container and position absolute relative to container.
+            // But container is flex column.
+            // Let's force container relative.
+            container.style.position = 'relative';
+            
+            // Reset margin on clone to match absolute positioning logic if needed, 
+            // or just rely on it being identical?
+            // Safer to position absolute covering the notebook exactly.
+            // But notebook is centered.
+            
+            // Let's just append to container and rely on CSS if we set it to absolute 
+            // with exact coordinates.
+            oldView.style.position = 'absolute';
+            oldView.style.width = notebook.offsetWidth + 'px';
+            oldView.style.height = notebook.offsetHeight + 'px';
+            oldView.style.top = notebook.offsetTop + 'px';
+            oldView.style.left = notebook.offsetLeft + 'px';
+            oldView.style.margin = '0'; // Remove auto margin to avoid double offsetting
+            oldView.style.transform = 'none';
+            oldView.style.pointerEvents = 'none';
+            oldView.style.transformOrigin = 'left center';
+            oldView.style.backfaceVisibility = 'hidden'; // Hide backface to look cleaner
+            
+            // Prepare Real Notebook (New View)
+            const leftPage = notebook.querySelector('.left-page');
+            const rightPage = notebook.querySelector('.right-page');
+            
+            // Update content
+            leftPage.innerHTML = getEntryLeftHtml(newIndex);
+            rightPage.innerHTML = getEntryRightHtml(newIndex);
+            
+            notebook.style.transformOrigin = 'left center';
+            notebook.style.backfaceVisibility = 'hidden';
+            
+            if (direction === 'left') { // NEXT: Flip Old View (Top) to Left
+                container.appendChild(oldView);
+                oldView.style.zIndex = '100';
+                notebook.style.zIndex = '1';
+                
+                // Animate Old View flipping open/away
+                const animation = oldView.animate([
+                    { transform: 'rotateY(0deg)', opacity: 1 },
+                    { transform: 'rotateY(-90deg)', opacity: 1 },
+                    { transform: 'rotateY(-180deg)', opacity: 0 }
+                ], {
+                    duration: 700,
+                    easing: 'cubic-bezier(0.645, 0.045, 0.355, 1)', // ease-in-out-cubic
+                    fill: 'forwards'
+                });
+                
+                animation.onfinish = () => {
+                    oldView.remove();
+                    finalizeTransition(newIndex);
+                };
+                
+            } else { // PREV: Flip New View (Top) in from Left
+                container.appendChild(oldView);
+                oldView.style.zIndex = '1'; // Old view stays at bottom
+                notebook.style.zIndex = '100'; // New view is on top
+                
+                // Start New View flipped out
+                notebook.style.transform = 'rotateY(-180deg)';
+                notebook.style.opacity = '0';
+                
+                // Animate New View flipping closed/in
+                const animation = notebook.animate([
+                    { transform: 'rotateY(-180deg)', opacity: 0 },
+                    { transform: 'rotateY(-90deg)', opacity: 1 },
+                    { transform: 'rotateY(0deg)', opacity: 1 }
+                ], {
+                    duration: 700,
+                    easing: 'cubic-bezier(0.645, 0.045, 0.355, 1)',
+                    fill: 'forwards'
+                });
+                
+                animation.onfinish = () => {
+                    oldView.remove();
+                    notebook.style.transform = 'none';
+                    notebook.style.opacity = '1';
+                    finalizeTransition(newIndex);
+                };
+            }
+        }
+        
+        function finalizeTransition(index) {
+            currentIndex = index;
+            updateNavButtons();
+            setupStarRating();
+            loadEntry(currentIndex);
+        }
+
         function prevEntry() {
             if (currentIndex <= 0) return;
+            const prevIndex = currentIndex - 1;
+
+            if (window.innerWidth < 991) {
+                performMobileTransition(prevIndex, 'right');
+                return;
+            }
             
             const notebook = document.querySelector('.notebook');
-            const prevIndex = currentIndex - 1;
             const leftPage = document.querySelector('.left-page');
             const rightPage = document.querySelector('.right-page');
             
@@ -965,9 +1268,14 @@
 
         function nextEntry() {
             if (currentIndex >= entries.length - 1) return;
+            const nextIndex = currentIndex + 1;
+
+            if (window.innerWidth < 991) {
+                performMobileTransition(nextIndex, 'left');
+                return;
+            }
             
             const notebook = document.querySelector('.notebook');
-            const nextIndex = currentIndex + 1;
             const leftPage = document.querySelector('.left-page');
             const rightPage = document.querySelector('.right-page');
             

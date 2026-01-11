@@ -56,13 +56,21 @@ CREATE TABLE IF NOT EXISTS songs (
     playlist_id INT NOT NULL,
     title VARCHAR(100) NOT NULL,
     artist VARCHAR(100),
-    url VARCHAR(255), -- YouTube or Spotify link
-    is_ai_generated BOOLEAN DEFAULT 0,
+    url VARCHAR(500), -- YouTube, Spotify or AI Audio URL
+    is_ai_generated TINYINT(1) DEFAULT 0,
     lyrics TEXT NULL,
     melody_description TEXT NULL,
+    duration INT DEFAULT 0 COMMENT 'Duration in seconds',
+    voice_gender VARCHAR(20) NULL COMMENT 'male or female',
+    music_style VARCHAR(100) NULL,
+    generation_id VARCHAR(255) NULL COMMENT 'Suno API generation ID',
+    status VARCHAR(50) DEFAULT 'active' COMMENT 'active, pending_generation, failed',
     FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
     UNIQUE(playlist_id, title, artist)
 );
+
+CREATE INDEX IF NOT EXISTS idx_ai_generated ON songs(is_ai_generated);
+CREATE INDEX IF NOT EXISTS idx_status ON songs(status);
 
 -- Gamification
 CREATE TABLE IF NOT EXISTS achievements (

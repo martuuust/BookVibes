@@ -7,10 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-body: linear-gradient(135deg,#eef2ff,#ffffff);
+            --bg-body: #ffffff;
             --card-bg: #ffffff;
             --input-bg: #f8f9fa;
-            --text-muted: #64748b; /* Added text-muted variable */
+            --text-muted: #64748b;
+            --header-bg: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 50%, #fce7f3 100%);
+            --header-text: #1e293b;
+            --header-text-sub: rgba(30, 41, 59, 0.6);
+            --header-stars-display: none;
         }
         body.dark-mode {
             --bg-body: 
@@ -37,7 +41,11 @@
                 linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             --card-bg: #1e293b;
             --input-bg: #334155;
-            --text-muted: #94a3b8; /* Added text-muted variable */
+            --text-muted: #94a3b8;
+            --header-bg: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            --header-text: #ffffff;
+            --header-text-sub: rgba(255, 255, 255, 0.5);
+            --header-stars-display: block;
         }
         body {
             background: var(--bg-body) !important;
@@ -62,6 +70,10 @@
             height: 100%;
             pointer-events: none;
             z-index: 0;
+            display: none;
+        }
+        body.dark-mode .stars {
+            display: block;
         }
         .star {
             position: absolute;
@@ -142,22 +154,22 @@
         <div class="col-md-8 col-lg-6">
             <div class="card shadow-lg border-0 overflow-hidden" style="border-radius: 24px;">
                 <!-- Card Header with Starry Vibe -->
-                <div class="p-5 text-center text-white" style="background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%); position: relative;">
+                <div class="p-5 text-center" style="background: var(--header-bg); color: var(--header-text); position: relative;">
                     <!-- Back Button Inside Card -->
-                    <a href="/dashboard" class="position-absolute top-0 start-0 m-3 text-white-50 text-decoration-none d-flex align-items-center gap-2" style="z-index: 10;">
+                    <a href="/dashboard" class="position-absolute top-0 start-0 m-3 text-decoration-none d-flex align-items-center gap-2" style="z-index: 10; color: var(--header-text-sub);">
                         <i class="bi bi-arrow-left fs-5"></i>
                         <span class="small fw-semibold">Volver</span>
                     </a>
 
-                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; pointer-events:none;">
+                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; pointer-events:none; display: var(--header-stars-display);">
                          <div style="position: absolute; width: 2px; height: 2px; background: white; top: 20%; left: 30%; opacity: 0.8; box-shadow: 0 0 4px white;"></div>
                          <div style="position: absolute; width: 1px; height: 1px; background: white; top: 60%; left: 80%; opacity: 0.6;"></div>
                          <div style="position: absolute; width: 2px; height: 2px; background: white; top: 40%; left: 10%; opacity: 0.7;"></div>
                          <div style="position: absolute; width: 1px; height: 1px; background: white; top: 80%; left: 50%; opacity: 0.5;"></div>
                     </div>
-                    <i class="bi bi-search display-1 mb-3 text-white-50"></i>
+                    <i class="bi bi-search display-1 mb-3" style="color: var(--header-text-sub);"></i>
                     <h2 class="mb-2 fw-bold position-relative">¿Qué estás leyendo?</h2>
-                    <p class="text-white-50 mb-0 position-relative">Introduce el título y generaremos una experiencia inmersiva.</p>
+                    <p class="mb-0 position-relative" style="color: var(--header-text-sub);">Introduce el título y generaremos una experiencia inmersiva.</p>
                 </div>
                 
                 <div class="card-body p-5 bg-white">

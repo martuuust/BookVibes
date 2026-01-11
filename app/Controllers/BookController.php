@@ -434,6 +434,33 @@ class BookController extends Controller
             $mood = $body['mood'] ?? 'Neutral';
             $coverUrl = $body['cover_url'] ?? '';
 
+            // Handle cover upload
+            if (isset($_FILES['cover_file']) && $_FILES['cover_file']['error'] === UPLOAD_ERR_OK) {
+                $coverTmpPath = $_FILES['cover_file']['tmp_name'];
+                $coverName = $_FILES['cover_file']['name'];
+                $coverNameCmps = explode(".", $coverName);
+                $coverExtension = strtolower(end($coverNameCmps));
+                $allowedCoverExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                
+                if (in_array($coverExtension, $allowedCoverExtensions)) {
+                    $uploadCoverDir = './uploads/covers/';
+                    if (!is_dir($uploadCoverDir)) {
+                        mkdir($uploadCoverDir, 0777, true);
+                    }
+                    // Generate unique name
+                    $coverDestName = md5(time() . $coverName) . '.' . $coverExtension;
+                    $coverDestPath = $uploadCoverDir . $coverDestName;
+                    
+                    if (move_uploaded_file($coverTmpPath, $coverDestPath)) {
+                        // Store web-accessible path (remove leading dot if needed, but ./uploads usually works if served correctly, 
+                        // better to strip ./ for cleaner URL if relative to public root)
+                        // Assuming public/uploads is where it goes or simple relative path. 
+                        // Using /uploads/... might be safer if document root is set to public
+                        $coverUrl = '/uploads/covers/' . $coverDestName; 
+                    }
+                }
+            }
+
             $bookData = [
                 'title' => $title,
                 'author' => $author,
@@ -1080,6 +1107,12 @@ class BookController extends Controller
         
         if (session_status() === PHP_SESSION_NONE) session_start();
         
+        // PRO CHECK
+        $isPro = !empty($_SESSION['pro']) && $_SESSION['pro'];
+        if (!$isPro) {
+            return $this->json(['ok' => false, 'error' => 'Functionality restricted to Pro users', 'require_upgrade' => true], 403);
+        }
+        
         $body = $request->getBody();
         $bookId = $body['book_id'] ?? null;
         $forceRegenerate = !empty($body['force_regenerate']);
@@ -1112,16 +1145,20 @@ class BookController extends Controller
         } catch (\Exception $e) {}
         
         // Check for cached map data (unless force regenerate)
+        // DISABLED CACHE TEMPORARILY FOR DEBUGGING/UPDATES
+        /*
         if (!$forceRegenerate) {
             $cached = $db->query("SELECT map_data FROM books WHERE id = ?", [$bookId])->fetch();
             if (!empty($cached['map_data'])) {
                 $mapData = json_decode($cached['map_data'], true);
-                if ($mapData) {
+                // Check if markers are empty to force regen
+                if ($mapData && !empty($mapData['markers'])) {
                     Logger::debug("Mapa obtenido de caché", ['book_id' => $bookId]);
                     return $this->json(['ok' => true, 'map' => $mapData, 'cached' => true]);
                 }
             }
         }
+        */
         
         // Generate new map data using BookMapService
         try {

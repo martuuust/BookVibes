@@ -14,7 +14,7 @@ class Database
     {
         $config =  [
             'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-            'port' => $_ENV['DB_PORT'] ?? '3306',
+            'port' => !empty($_ENV['DB_PORT']) ? $_ENV['DB_PORT'] : '3306',
             'user' => $_ENV['DB_USER'] ?? 'root',
             'password' => $_ENV['DB_PASS'] ?? '',
             'dbname' => $_ENV['DB_NAME'] ?? 'bookvibes',

@@ -153,20 +153,22 @@ $router->get('/pro/upgrade', function() {
             }
             
             .buy-btn { 
-                background: var(--primary-gradient); 
+                background: #0f172a; 
                 color: #fff; border: none; 
                 padding: 16px 24px; 
-                border-radius: 16px; 
-                font-weight: 700;
+                border-radius: 12px; 
+                font-weight: 600;
                 font-size: 1.1rem;
-                transition: all 0.3s;
+                transition: all 0.2s ease;
                 width: 100%;
                 position: relative;
                 overflow: hidden;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             }
             .buy-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 20px 25px -5px rgba(124, 58, 237, 0.4);
+                background: #1e293b;
+                transform: translateY(-1px);
+                box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3);
                 color: white;
             }
             
@@ -337,17 +339,39 @@ $router->get('/pro/upgrade', function() {
               </div>
               
               <div class='p-3 rounded-3 mb-3 bg-light border'>
-                <div class='d-flex flex-column gap-2'>
-                    <div class='d-flex gap-2 align-items-center'>
-                        <i class='bi bi-music-note-list text-primary'></i>
-                        <span class='text-dark fw-medium'>Canciones ilimitadas</span>
+                <div class='d-flex flex-column gap-3'>
+                    <div class='d-flex gap-3 align-items-center'>
+                        <div class='bg-primary bg-opacity-10 p-2 rounded-3 text-primary'>
+                            <i class='bi bi-arrow-repeat fs-5'></i>
+                        </div>
+                        <div>
+                            <span class='text-dark fw-bold d-block'>Regeneraciones ilimitadas</span>
+                            <small class='text-muted'>Crea playlists perfectas sin restricciones.</small>
+                        </div>
                     </div>
-                    <div class='d-flex gap-2 align-items-center'>
-                        <i class='bi bi-person-video2 text-primary'></i>
-                        <span class='text-dark fw-medium'>Generación de personajes</span>
+
+                    <div class='d-flex gap-3 align-items-center'>
+                        <div class='bg-primary bg-opacity-10 p-2 rounded-3 text-primary'>
+                            <i class='bi bi-activity fs-5'></i>
+                        </div>
+                        <div>
+                            <span class='text-dark fw-bold d-block'>Análisis de sentimiento avanzado</span>
+                            <small class='text-muted'>IA que entiende las emociones profundas.</small>
+                        </div>
                     </div>
-                    <div class='mt-2 pt-2 border-top'>
-                        <small class='text-muted lh-sm d-block'>
+
+                    <div class='d-flex gap-3 align-items-center'>
+                        <div class='bg-primary bg-opacity-10 p-2 rounded-3 text-primary'>
+                            <i class='bi bi-map-fill fs-5'></i>
+                        </div>
+                        <div>
+                            <span class='text-dark fw-bold d-block'>Mapas literarios completos</span>
+                            <small class='text-muted'>Explora todas las ubicaciones de la historia.</small>
+                        </div>
+                    </div>
+
+                    <div class='mt-2 pt-3 border-top'>
+                        <small class='text-muted lh-sm d-block text-center'>
                             Desbloquea todo el potencial de BookVibes y lleva tu experiencia de lectura al siguiente nivel.
                         </small>
                     </div>
@@ -683,10 +707,6 @@ $router->get('/pro/settings', function() {
                                     <li class="mb-3 d-flex align-items-center">
                                         <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
                                         <span class="fw-medium">Canciones ilimitadas en tus playlists</span>
-                                    </li>
-                                    <li class="mb-3 d-flex align-items-center">
-                                        <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-                                        <span class="fw-medium">Generación de personajes con IA</span>
                                     </li>
                                     <li class="mb-3 d-flex align-items-center">
                                         <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>

@@ -8,9 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-body: linear-gradient(135deg,#eef2ff,#ffffff);
+            --bg-body: #ffffff;
             --card-bg: #ffffff;
             --input-bg: #f8f9fa;
+            --text-muted: #64748b;
+            --header-bg: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 50%, #fce7f3 100%);
+            --header-text: #1e293b;
+            --header-text-sub: rgba(30, 41, 59, 0.6);
+            --header-stars-display: none;
         }
         body.dark-mode {
             --bg-body: 
@@ -37,10 +42,16 @@
                 linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             --card-bg: #1e293b;
             --input-bg: #334155;
+            --text-muted: #94a3b8;
+            --header-bg: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            --header-text: #ffffff;
+            --header-text-sub: rgba(255, 255, 255, 0.5);
+            --header-stars-display: block;
         }
         body {
             background: var(--bg-body) !important;
             transition: background 0.3s ease, color 0.3s ease;
+            min-height: 100vh;
         }
         body.dark-mode { color: #f8fafc; }
         body.dark-mode .bg-white { background-color: var(--card-bg) !important; color: #f8fafc; }
@@ -49,8 +60,7 @@
         body.dark-mode .form-control { background-color: var(--input-bg); color: #f8fafc; border-color: rgba(255,255,255,0.1); }
         body.dark-mode .form-control::placeholder { color: #94a3b8; }
         body.dark-mode .input-group-text { background-color: var(--input-bg); border-color: rgba(255,255,255,0.1); color: #94a3b8; }
-        body.dark-mode .bi-sun-fill { color: #fff3e0 !important; }
-
+        
         /* Stars */
         .stars {
             position: absolute;
@@ -60,6 +70,7 @@
             height: 100%;
             pointer-events: none;
             z-index: 0;
+            display: var(--header-stars-display);
         }
         .star {
             position: absolute;
@@ -73,25 +84,10 @@
             0%, 100% { opacity: 0.3; transform: scale(0.8); }
             50% { opacity: 1; transform: scale(1.2); }
         }
-        .navbar-light-mode {
-            background: linear-gradient(to right, #e0f7fa, #f0e0fa, #fae0e0);
-            color: #1a202c;
-        }
-        .navbar-dark-mode {
-            background: linear-gradient(to right, #1a202c, #2d3748, #4a5568);
-            color: #e2e8f0;
-        }
-        .navbar-brand-text {
-            color: #1a202c;
-        }
-        .dark-mode .navbar-brand-text {
-            color: #e2e8f0;
-        }
-        .dark-mode-text {
-            color: #e2e8f0 !important;
-        }
-        .dark-mode-icon {
-            color: #e2e8f0 !important;
+        
+        .form-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
         }
     </style>
 </head>
@@ -117,23 +113,28 @@
         });
     </script>
 
-<div class="container mt-4 mb-5">
+<div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-7">
+        <div class="col-md-10 col-lg-8">
             <div class="card shadow-lg border-0 overflow-hidden" style="border-radius: 24px;">
                 <!-- Card Header -->
-                <div class="p-5 text-center text-white" style="background: radial-gradient(ellipse at bottom, #0f172a 0%, #334155 100%); position: relative;">
+                <div class="p-4 text-center" style="background: var(--header-bg); color: var(--header-text); position: relative;">
                     <!-- Back Button -->
-                    <a href="/dashboard" class="position-absolute top-0 start-0 m-3 text-white-50 text-decoration-none d-flex align-items-center gap-2" style="z-index: 10;">
+                    <a href="/dashboard" class="position-absolute top-0 start-0 m-3 text-decoration-none d-flex align-items-center gap-2" style="z-index: 10; color: var(--header-text-sub);">
                         <i class="bi bi-arrow-left fs-5"></i>
                         <span class="small fw-semibold">Volver</span>
                     </a>
-                    <i class="bi bi-cloud-upload display-1 mb-3 text-white-50"></i>
-                    <h2 class="mb-2 fw-bold position-relative">Subir Libro</h2>
-                    <p class="text-white-50 mb-0 position-relative">Sube tus archivos PDF, EPUB o MOBI.</p>
+                    
+                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; pointer-events:none; display: var(--header-stars-display);">
+                        <!-- Static stars for header if needed, but we rely on global stars for dark mode -->
+                    </div>
+
+                    <i class="bi bi-cloud-upload display-4 mb-2" style="color: var(--header-text-sub);"></i>
+                    <h3 class="mb-1 fw-bold position-relative">Subir Libro</h3>
+                    <p class="mb-0 position-relative small" style="color: var(--header-text-sub);">Sube tus archivos PDF, EPUB o MOBI.</p>
                 </div>
                 
-                <div class="card-body p-5 bg-white">
+                <div class="card-body p-4 bg-white">
                     <?php if (isset($error)): ?>
                         <div class="alert alert-danger shadow-sm border-0" role="alert" style="border-radius: 12px;">
                             <i class="bi bi-exclamation-circle-fill me-2"></i> <?php echo $error; ?>
@@ -141,49 +142,58 @@
                     <?php endif; ?>
 
                     <form action="/books/storeUpload" method="POST" enctype="multipart/form-data">
-                        <div class="mb-4">
-                            <label for="book_file" class="form-label fw-bold small text-uppercase text-muted">Archivo del Libro</label>
-                            <div class="input-group input-group-lg">
-                                <input type="file" class="form-control bg-light" id="book_file" name="book_file" required style="border-radius: 12px;">
-                            </div>
-                            <div class="form-text">Formatos permitidos: PDF, EPUB, MOBI.</div>
-                        </div>
                         
-                        <div class="row g-3">
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label for="book_file" class="form-label fw-bold text-uppercase text-muted">Archivo del Libro</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control bg-light" id="book_file" name="book_file" required style="border-radius: 12px;">
+                                </div>
+                                <div class="form-text small">PDF, EPUB, MOBI.</div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label for="title" class="form-label fw-bold small text-uppercase text-muted">Título</label>
+                                <label for="title" class="form-label fw-bold text-uppercase text-muted">Título</label>
                                 <input type="text" class="form-control bg-light" id="title" name="title" placeholder="Título del libro" style="border-radius: 12px;">
                             </div>
                             <div class="col-md-6">
-                                <label for="author" class="form-label fw-bold small text-uppercase text-muted">Autor</label>
+                                <label for="author" class="form-label fw-bold text-uppercase text-muted">Autor</label>
                                 <input type="text" class="form-control bg-light" id="author" name="author" placeholder="Autor del libro" style="border-radius: 12px;">
                             </div>
                         </div>
 
-                        <div class="mb-3 mt-3">
-                            <label for="synopsis" class="form-label fw-bold small text-uppercase text-muted">Sinopsis</label>
-                            <textarea class="form-control bg-light" id="synopsis" name="synopsis" rows="3" placeholder="Breve descripción del libro" style="border-radius: 12px;"></textarea>
-                        </div>
-
-                        <div class="row g-3 mb-4">
+                        <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label for="genre" class="form-label fw-bold small text-uppercase text-muted">Género</label>
+                                <label for="genre" class="form-label fw-bold text-uppercase text-muted">Género</label>
                                 <input type="text" class="form-control bg-light" id="genre" name="genre" placeholder="Ej: Fantasía" style="border-radius: 12px;">
                             </div>
                             <div class="col-md-6">
-                                <label for="mood" class="form-label fw-bold small text-uppercase text-muted">Vibe / Mood</label>
+                                <label for="mood" class="form-label fw-bold text-uppercase text-muted">Vibe / Mood</label>
                                 <input type="text" class="form-control bg-light" id="mood" name="mood" placeholder="Ej: Melancólico" style="border-radius: 12px;">
                             </div>
                         </div>
                         
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="cover_file" class="form-label fw-bold text-uppercase text-muted">Subir Portada (Imagen)</label>
+                                <input type="file" class="form-control bg-light" id="cover_file" name="cover_file" accept="image/png, image/jpeg, image/jpg, image/webp" style="border-radius: 12px;">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cover_url" class="form-label fw-bold text-uppercase text-muted">O URL de Portada</label>
+                                <input type="url" class="form-control bg-light" id="cover_url" name="cover_url" placeholder="https://..." style="border-radius: 12px;">
+                            </div>
+                        </div>
+
                         <div class="mb-4">
-                             <label for="cover_url" class="form-label fw-bold small text-uppercase text-muted">URL Portada (Opcional)</label>
-                             <input type="url" class="form-control bg-light" id="cover_url" name="cover_url" placeholder="https://..." style="border-radius: 12px;">
+                            <label for="synopsis" class="form-label fw-bold text-uppercase text-muted">Sinopsis</label>
+                            <textarea class="form-control bg-light" id="synopsis" name="synopsis" rows="2" placeholder="Breve descripción del libro" style="border-radius: 12px;"></textarea>
                         </div>
 
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg fw-bold py-3" style="border-radius: 12px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;">
-                                <i class="bi bi-cloud-arrow-up-fill me-2"></i> Subir y Procesar
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold py-2" style="border-radius: 12px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;">
+                                <i class="bi bi-cloud-arrow-up-fill me-2"></i> Subir Libro
                             </button>
                         </div>
                     </form>

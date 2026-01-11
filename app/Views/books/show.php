@@ -77,7 +77,7 @@
         body {
             background: var(--bg-body) !important;
             background-attachment: fixed !important;
-            color: var(--text-main);
+            color: var(--text-body);
             transition: background 0.3s ease, color 0.3s ease;
         }
 
@@ -126,22 +126,52 @@
         transform: scale(1.05);
     }
 
+    /* --- New Styles for Playlist (Glassmorphism) --- */
+    .glass-card,
+    #playlist-container,
+    #full-playlist {
+        background: #1e293b !important; /* Force dark background (Slate 800) */
+        color: #ffffff !important; /* Force white text globally */
+    }
 
-            display: flex;
-            align-items: center;
+    .glass-card {
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+        
+        /* High Specificity Overrides for Playlist Content */
+        .glass-card *, 
+        #playlist-container *, 
+        #full-playlist * {
+            color: #ffffff; /* Base color for all children */
         }
 
-        /* --- New Styles for Playlist (Glassmorphism) --- */
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            /* overflow: hidden; Removed to allow popover to show */
-            color: var(--text-main);
-            transition: all 0.3s ease;
+        /* FIX: Remove Bootstrap's default white background from list groups */
+        .glass-card .list-group,
+        .glass-card .list-group-item,
+        .glass-card .playlist-track {
+            background: transparent !important;
+            background-color: transparent !important;
         }
+        
+        /* Specific overrides for muted text and buttons */
+        .glass-card .text-muted, 
+        #playlist-container .text-muted, 
+        #full-playlist .text-muted {
+            color: rgba(255, 255, 255, 0.7) !important;
+        }
+        
+        /* Preserve button colors */
+        .glass-card .btn-spotify, 
+        .glass-card .btn-outline-warning {
+            color: inherit; 
+        }
+        .glass-card .btn-spotify { color: #ffffff !important; }
+        .glass-card .btn-outline-warning { color: #ffc107 !important; }
+        
         .card-header-custom {
             padding: 1.25rem;
             border-bottom: 1px solid var(--card-border);
@@ -386,7 +416,88 @@
              text-shadow: 0 0 20px rgba(139, 92, 246, 0.5); /* Soft purple glow for dark mode */
         }
 
-    </style>
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+            .book-title-glow {
+                font-size: 2rem !important;
+            }
+            .book-header {
+                padding: 2rem 1rem !important;
+            }
+            .navbar-logo {
+                height: 60px;
+            }
+            .lead {
+                font-size: 1rem;
+            }
+            .glass-card, .card {
+                margin-bottom: 1.5rem !important;
+            }
+            /* Stack columns visually if not handled by grid */
+            .order-1 { order: 1 !important; }
+            .order-2 { order: 2 !important; }
+            
+            /* Adjust map card height */
+            .card .position-relative[style*="height: 250px"] {
+                height: 200px !important;
+            }
+        }
+
+        /* Modal Styles */
+    .upgrade-modal-content {
+        border-radius: 24px;
+        overflow: hidden;
+        transition: background 0.3s, color 0.3s;
+        /* Light Mode: Pastel Gradient */
+        background: linear-gradient(135deg, #e9d5ff 0%, #bae6fd 100%);
+        color: #1e293b;
+        border: 1px solid rgba(255,255,255,0.5);
+    }
+    .upgrade-modal-content h3 { color: #1e293b; }
+    .upgrade-modal-content .modal-text-muted { color: #475569 !important; }
+    .upgrade-modal-content .modal-icon-bg { background: rgba(255,255,255,0.6); }
+    .upgrade-modal-content .btn-link { color: #64748b !important; }
+
+    /* Dark Mode Modal */
+    body.dark-mode .upgrade-modal-content {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    body.dark-mode .upgrade-modal-content h3 { color: white; }
+    body.dark-mode .upgrade-modal-content .modal-text-muted { color: rgba(255,255,255,0.5) !important; }
+    body.dark-mode .upgrade-modal-content .modal-icon-bg { background: rgba(255,255,255,0.1); }
+    body.dark-mode .upgrade-modal-content .btn-link { color: rgba(255,255,255,0.5) !important; }
+
+    /* Modal Stars */
+    #modal-stars-container {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 1; /* Always visible */
+        transition: opacity 0.5s;
+    }
+    
+    .modal-star {
+        position: absolute;
+        background: #f59e0b; /* Amber 500 for Light Mode */
+        border-radius: 50%;
+        box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+        animation: floatModalStar 4s infinite ease-in-out alternate;
+    }
+
+    /* Dark Mode Star Override */
+    body.dark-mode .modal-star {
+        background: white;
+        box-shadow: 0 0 4px rgba(255,255,255,0.8);
+    }
+
+    @keyframes floatModalStar {
+        0% { transform: translateY(0) scale(1); opacity: 0.4; }
+        100% { transform: translateY(-10px) scale(1.2); opacity: 0.9; }
+    }
+</style>
 </head>
 <body>
     <div id="stars-container"></div>
@@ -491,6 +602,29 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                 
                 starsContainer.appendChild(star);
             }
+
+            // Generate Modal Stars
+            const modalStarsContainer = document.getElementById('modal-stars-container');
+            if (modalStarsContainer) {
+                const modalStarCount = 40;
+                for (let i = 0; i < modalStarCount; i++) {
+                    const star = document.createElement('div');
+                    star.classList.add('modal-star');
+                    const x = Math.random() * 100;
+                    const y = Math.random() * 100;
+                    const size = Math.random() * 3 + 2; // 2px to 5px
+                    const duration = Math.random() * 3 + 3; // 3s to 6s
+                    
+                    star.style.left = x + '%';
+                    star.style.top = y + '%';
+                    star.style.width = size + 'px';
+                    star.style.height = size + 'px';
+                    star.style.animationDuration = duration + 's';
+                    star.style.animationDelay = (Math.random() * 5) + 's';
+                    
+                    modalStarsContainer.appendChild(star);
+                }
+            }
         });
     </script>
 
@@ -500,6 +634,11 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         <a href="/dashboard" class="back-nav" aria-label="Volver">
             <i class="bi bi-arrow-left"></i>
         </a>
+        <?php if(!empty($book['cover_url'])): ?>
+            <div class="mb-4 transition-hover">
+                <img src="<?= htmlspecialchars($book['cover_url']) ?>" alt="Portada de <?= htmlspecialchars($book['title']) ?>" class="shadow-lg rounded-4" style="max-height: 320px; max-width: 80%; object-fit: cover; border: 4px solid white; transform: rotate(-2deg);">
+            </div>
+        <?php endif; ?>
         <h1 class="display-4 fw-bold mb-3 book-title-glow"><?= htmlspecialchars($book['title']) ?></h1>
         <p class="lead mb-4 opacity-75" style="color: var(--text-body);">por <?= htmlspecialchars($book['author']) ?></p>
         <span class="badge bg-warning text-black fs-6 px-4 py-2 rounded-pill shadow-sm"><?= htmlspecialchars($book['mood']) ?></span>
@@ -509,7 +648,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
 <div class="container-fluid px-4 px-md-5 mt-4">
     <div class="row">
         <!-- Playlist Col (Dynamic Height) -->
-        <div class="col-md-4 mb-4">
+        <div class="col-md-4 mb-4 order-2 order-md-1">
             <div class="glass-card">
                 <div class="card-header-custom d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold text-white"><i class="bi bi-music-note-beamed me-2"></i>Playlist</h5>
@@ -632,7 +771,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
                         <h4 class="fw-bold mb-2 text-dark">Explora el mundo de la historia</h4>
                         <p class="text-secondary fw-medium mb-4" style="text-shadow: 0 1px 2px rgba(255,255,255,0.8);">Descubre las ubicaciones clave del libro en un mapa interactivo.</p>
                         <button onclick="openFullScreenMap()" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg d-inline-flex align-items-center gap-2 transition-hover">
-                            <i class="bi bi-map"></i>
+                            <?php if(!$isPro): ?><i class="bi bi-lock-fill me-1"></i><?php else: ?><i class="bi bi-map"></i><?php endif; ?>
                             Viajar al Mapa
                         </button>
                     </div>
@@ -648,7 +787,6 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         <button onclick="closeFullScreenMap()" class="btn btn-light btn-sm rounded-circle shadow-sm" style="width: 40px; height: 40px;">
             <i class="bi bi-arrow-left"></i>
         </button>
-        <span class="fs-map-title">Mapa del Libro</span>
         <div style="width: 40px;"></div> <!-- Spacer -->
     </div>
 
@@ -703,23 +841,78 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     </div>
 </div>
 
+<!-- Upgrade Modal -->
+<div class="modal fade" id="upgradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content upgrade-modal-content border-0 shadow-lg position-relative">
+      <div id="modal-stars-container"></div>
+      <div class="modal-body p-5 text-center position-relative" style="z-index: 2;">
+        <div class="mb-4">
+            <div class="rounded-circle modal-icon-bg d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="bi bi-gem text-warning" style="font-size: 2.5rem;"></i>
+            </div>
+        </div>
+        <h3 class="fw-bold mb-3">Desbloquea BookVibes Pro</h3>
+        <p class="modal-text-muted mb-4 fs-5">
+            Has alcanzado el límite de regeneraciones gratuitas para este libro.
+        </p>
+        <ul class="text-start d-inline-block mb-4 modal-text-muted">
+            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Regeneraciones ilimitadas</li>
+            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Análisis de sentimiento avanzado</li>
+            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Mapas literarios completos</li>
+        </ul>
+        <div class="d-grid gap-3">
+             <a href="/pro/upgrade?book_id=<?= $book['id'] ?>" class="btn btn-warning btn-lg rounded-pill fw-bold shadow-sm text-dark">
+                 Actualizar a Pro
+             </a>
+             <button type="button" class="btn btn-link modal-text-muted text-decoration-none" data-bs-dismiss="modal">
+                 Quizás más tarde
+             </button>
+         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fictional Warning Modal -->
+<div class="modal fade" id="fictionalModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg text-center p-4" style="border-radius: 24px; background: #fff;">
+        <div class="mb-3">
+            <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="bi bi-stars text-primary" style="font-size: 2.5rem;"></i>
+            </div>
+        </div>
+        <h4 class="fw-bold mb-3 text-dark">Escenario Ficticio</h4>
+        <p class="text-secondary mb-4">
+            Los sitios donde se desarrolla esta historia son <strong>ficticios y no existen</strong> en el mundo real. 
+            <br><br>
+            El mapa muestra las ubicaciones reales que sirvieron de inspiración o el entorno geográfico aproximado.
+        </p>
+        <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm" data-bs-dismiss="modal">
+            Entendido
+        </button>
+    </div>
+  </div>
+</div>
+
 <!-- Context Modal -->
 <div class="modal fade" id="contextModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden;">
-      <div class="modal-header border-0 bg-primary bg-opacity-10">
-        <h5 class="modal-title fw-bold text-primary"><i class="bi bi-bookmark-star-fill me-2"></i>Contexto Literario</h5>
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; overflow: hidden; background: #fff1e6; color: #2c1810; border: 4px double #d4c5b0;">
+      <div class="modal-header border-0" style="border-bottom: 1px solid rgba(44, 24, 16, 0.1);">
+        <h5 class="modal-title fw-bold" style="color: #4a2c2a; font-family: 'Merriweather', serif;"><i class="bi bi-bookmark-star-fill me-2"></i>Contexto Literario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
-        <h5 id="modal-place-title" class="fw-bold text-dark mb-3">Lugar</h5>
-        <div class="p-3 bg-light rounded-3 border border-light">
-            <p id="modal-context-text" class="fst-italic text-secondary mb-0" style="font-family: 'Merriweather', serif; line-height: 1.8;">
+        <h5 id="modal-place-title" class="fw-bold mb-3" style="color: #5d4037;">Lugar</h5>
+        <div class="mt-2">
+            <p id="modal-context-text" class="fst-italic mb-0" style="font-family: 'Merriweather', serif; line-height: 1.8; color: #3e2723; font-size: 1.1rem;">
                 "Aquí aparecerá el texto o descripción detallada del momento en el libro..."
             </p>
         </div>
         <div class="mt-3 text-end">
-            <span id="modal-chapter-badge" class="badge bg-secondary">Capítulo</span>
+            <span id="modal-chapter-badge" class="badge" style="background: #5d4037; color: #fff1e6;">Capítulo</span>
         </div>
       </div>
     </div>
@@ -773,8 +966,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     
     /* Map Styling Filters */
     .custom-map-tiles {
-        filter: sepia(10%) hue-rotate(190deg) saturate(90%) contrast(90%);
-        /* A slightly cooler, more modern look */
+        /* Removed filters for colorful look */
     }
 
     /* Side Panel for Map Details */
@@ -916,7 +1108,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         width: 36px;
         height: 36px;
         border-radius: 50% 50% 50% 0;
-        background: #6366f1;
+        background: #4a148c; /* Dark Purple default */
         transform: rotate(-45deg);
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         display: flex;
@@ -930,26 +1122,77 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         font-size: 14px;
     }
     
-    /* Types Colors */
-    .marker-danger .marker-pin { background: #ef4444; }
-    .marker-meetup .marker-pin { background: #10b981; }
-    .marker-discovery .marker-pin { background: #f59e0b; }
-    .marker-event .marker-pin { background: #6366f1; }
+    /* Types Colors - Vibrante & Literario */
+    .marker-danger .marker-pin { background: #6a1b9a; } /* Purple 800 */
+    .marker-meetup .marker-pin { background: #4a148c; } /* Purple 900 */
+    .marker-discovery .marker-pin { background: #7b1fa2; } /* Purple 700 */
+    .marker-event .marker-pin { background: #4a148c; } /* Purple 900 */
     
     /* Pulsing for High Importance */
     .marker-high .marker-pin {
         animation: pulse-marker 2s infinite;
     }
     @keyframes pulse-marker {
-        0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
     }
     .marker-danger.marker-high .marker-pin { animation-name: pulse-danger; }
     @keyframes pulse-danger {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+    }
+
+    /* Modal Z-Index Fix for Full Screen Map */
+    .modal {
+        z-index: 10050 !important;
+    }
+    .modal-backdrop {
+        z-index: 10040 !important;
+    }
+
+    /* Custom Badges for Bottom Sheet */
+    .badge-meetup { background-color: rgba(139, 92, 246, 0.15) !important; color: #7c3aed !important; }
+    .badge-discovery { background-color: rgba(217, 119, 6, 0.15) !important; color: #b45309 !important; }
+    .badge-danger-custom { background-color: rgba(225, 29, 72, 0.15) !important; color: #be123c !important; }
+    .badge-event { background-color: rgba(59, 130, 246, 0.15) !important; color: #1d4ed8 !important; }
+
+    /* Google Maps Link Styling - High Visibility */
+    #sheet-gmaps-link {
+        color: #4f46e5; /* Indigo 600 */
+        border-color: #e0e7ff; /* Indigo 100 */
+        background-color: #eef2ff; /* Indigo 50 */
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+    #sheet-gmaps-link:hover {
+        background-color: #4f46e5;
+        color: white;
+        transform: translateY(-2px) rotate(10deg);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        border-color: transparent;
+    }
+    #sheet-gmaps-link i {
+        font-size: 1.2rem;
+    }
+
+    /* Dark Mode Support for GMaps Link */
+    body.dark-mode #sheet-gmaps-link {
+        background-color: rgba(99, 102, 241, 0.2);
+        color: #a5b4fc; /* Indigo 300 */
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    body.dark-mode #sheet-gmaps-link:hover {
+        background-color: #6366f1; /* Indigo 500 */
+        color: white;
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        border-color: transparent;
     }
 </style>
 
@@ -987,12 +1230,49 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         document.getElementById('full-playlist').classList.toggle('show');
     }
     function executeRegeneratePlaylist() {
-        // ... previous impl ...
+        const btn = document.querySelector('button[onclick="executeRegeneratePlaylist()"]');
+        if(btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
+        }
+
         fetch('/books/regenerate-playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ book_id: BOOK_ID })
-        }).then(r=>r.json()).then(d => window.location.reload());
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                window.location.reload();
+            } else if (data.require_upgrade) {
+                const upgradeModal = new bootstrap.Modal(document.getElementById('upgradeModal'));
+                upgradeModal.show();
+                // Close popover
+                const popover = document.getElementById('regenerate-confirm-popover');
+                if(popover) popover.classList.add('d-none');
+                
+                // Reset button
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sí';
+                }
+            } else {
+                alert(data.error || 'Error al regenerar la playlist');
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sí';
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error de conexión');
+            if(btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Sí';
+            }
+        });
     }
     function toggleRegenerateConfirm() {
         // ... previous impl ...
@@ -1003,6 +1283,12 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
     // ========== NEW FULL SCREEN MAP LOGIC ==========
     
     function openFullScreenMap() {
+        if (!IS_PRO) {
+            const upgradeModal = new bootstrap.Modal(document.getElementById('upgradeModal'));
+            upgradeModal.show();
+            return;
+        }
+
         const overlay = document.getElementById('fs-map-overlay');
         overlay.classList.remove('d-none');
         
@@ -1021,7 +1307,7 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
             zoomControl: false // We can add custom zoom later or let user pinch
         }).setView([20, 0], 2);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
             subdomains: 'abcd',
             maxZoom: 20,
@@ -1081,13 +1367,16 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         // Check for Fictional/Inspiration markers to show alert
         const hasFictional = markers.some(m => m.is_fictional === true);
         if (hasFictional) {
-            document.getElementById('fs-fictional-alert').classList.remove('d-none');
-            // Auto hide after 8 seconds
-            setTimeout(() => {
-                document.getElementById('fs-fictional-alert').classList.add('d-none');
-            }, 8000);
+             // Show Modal explicitly
+             const fictionalModal = new bootstrap.Modal(document.getElementById('fictionalModal'));
+             fictionalModal.show();
+             
+             // Hide the old alert if it exists
+             const oldAlert = document.getElementById('fs-fictional-alert');
+             if(oldAlert) oldAlert.classList.add('d-none');
         } else {
-             document.getElementById('fs-fictional-alert').classList.add('d-none');
+             const oldAlert = document.getElementById('fs-fictional-alert');
+             if(oldAlert) oldAlert.classList.add('d-none');
         }
 
         markers.forEach(m => {
@@ -1134,10 +1423,10 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         // Colorize badge based on type
         const badge = document.getElementById('sheet-chapter');
         badge.className = 'badge mb-2 ';
-        if (marker.location_type === 'danger') badge.classList.add('bg-danger', 'bg-opacity-10', 'text-danger');
-        else if (marker.location_type === 'meetup') badge.classList.add('bg-success', 'bg-opacity-10', 'text-success');
-        else if (marker.location_type === 'discovery') badge.classList.add('bg-warning', 'bg-opacity-10', 'text-warning');
-        else badge.classList.add('bg-primary', 'bg-opacity-10', 'text-primary');
+        if (marker.location_type === 'danger') badge.classList.add('badge-danger-custom');
+        else if (marker.location_type === 'meetup') badge.classList.add('badge-meetup');
+        else if (marker.location_type === 'discovery') badge.classList.add('badge-discovery');
+        else badge.classList.add('badge-event');
 
         // Handle Fictional Badge
         const fictionalBadge = document.getElementById('sheet-fictional-badge');
@@ -1166,8 +1455,11 @@ $isPro = $pro_enabled ?? (!empty($_SESSION['pro']) && $_SESSION['pro']);
         if(!marker) return;
         
         document.getElementById('modal-place-title').innerText = marker.title;
-        // Use snippet as context text for now, phrased as a quote/excerpt appearance
-        document.getElementById('modal-context-text').innerText = `"${marker.snippet}"`; 
+        
+        // Use new book_excerpt if available, otherwise fallback to snippet
+        const text = marker.book_excerpt || marker.snippet || 'Información no disponible.';
+        document.getElementById('modal-context-text').innerText = `"${text}"`; 
+        
         document.getElementById('modal-chapter-badge').innerText = marker.chapter_context || 'Referencia';
         
         const myModal = new bootstrap.Modal(document.getElementById('contextModal'));

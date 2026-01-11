@@ -284,40 +284,40 @@ CONTEXT;
 Eres un experto en geografía literaria y cartografía digital. Analiza el libro "$title" de $author y genera datos para un mapa interactivo.
 $contextBlock
 INSTRUCCIONES CRÍTICAS DE VERACIDAD GEOGRÁFICA:
-1. **NO INVENTES NADA.** Si el lugar específico (ej: "Tommen High School") es ficticio, el campo "real_world_location" DEBE SER la ciudad o región real donde se inspira la obra (ej: "Cork, Ireland").
-2. **PRIORIDAD DE BÚSQUEDA:**
-   - Si es un lugar real (ej: "Torre Eiffel") -> Usa ese nombre exacto.
-   - Si es un lugar ficticio en una ciudad real -> Usa la CIUDAD ("London, UK").
+1. **NO INVENTES NADA.** Si el lugar específico es ficticio, usa la ciudad o región real de inspiración.
+2. **DIVERSIDAD GEOGRÁFICA:** Si el libro implica viajes (ej: "Nosotros en la luna", "Comer, Rezar, Amar"), **DEBES** incluir marcadores en los diferentes países/ciudades mencionados, no te limites a una sola ciudad.
+3. **PRIORIDAD DE BÚSQUEDA:**
+   - Si es un lugar real -> Usa ese nombre exacto.
+   - Si es un lugar ficticio en una ciudad real -> Usa la CIUDAD.
    - Si todo es ficticio -> Usa el lugar de rodaje o el país de inspiración.
-3. **EVITA ALUCINACIONES:** No asumas que el nombre del lugar ficticio es también el nombre de la ciudad. (Ej: NO digas "Hogwarts, Hogwarts City").
 
 EJEMPLOS CORRECTOS:
-- Ficticio: "Tommen High School" -> Real: "Cork, Ireland" (La ciudad real del libro).
-- Ficticio: "Hogwarts" -> Real: "Alnwick Castle, UK" (Lugar de rodaje).
-- Real: "Central Park" -> Real: "Central Park, New York, US".
+- "Nosotros en la luna": París (Francia), Londres (UK), Byron Bay (Australia).
+- "Harry Potter": King's Cross (Londres), Alnwick Castle (UK).
 
 Formato JSON OBLIGATORIO:
 {
   "map_config": {
-    "region_name": "Nombre de la región principal (Ciudad/País)",
+    "region_name": "Nombre de la región principal o 'Mundo' si hay viajes",
     "center_coordinates": { "lat": XX.XXXX, "lng": XX.XXXX },
-    "zoom_level": 12
+    "zoom_level": 5  // Usa 4-5 si hay viajes internacionales, 10-12 si es una ciudad
   },
   "markers": [
     {
-      "title": "Nombre del lugar específico (Ficticio o Real)",
-      "real_world_location": "Nombre REAL buscable en mapas (Este campo es CRÍTICO para validar coordenadas)",
-      "is_fictional": true, // true si el lugar exacto no existe y estás usando una ubicación aproximada
+      "title": "Nombre del lugar (Ciudad/País si es viaje)",
+      "real_world_location": "Nombre REAL buscable",
+      "is_fictional": boolean,
       "coordinates": { "lat": XX.XXXX, "lng": XX.XXXX },
-      "snippet": "Qué ocurre aquí en el libro (máx 120 caracteres)",
-      "chapter_context": "Momento de la historia (ej: 'Capítulo 3', 'Clímax')",
+      "snippet": "Contexto breve (máx 120 caracteres)",
+      "book_excerpt": "Cita textual o narrativa descriptiva del momento en el libro (máx 300 caracteres)",
+      "chapter_context": "Contexto narrativo",
       "location_type": "event|meetup|discovery|danger",
       "importance": "high|medium"
     }
   ]
 }
 
-GENERA 4-6 MARCADORES para los lugares más importantes de "$title".
+GENERA 5-10 MARCADORES cubriendo TODAS las ubicaciones geográficas importantes del libro. Asegúrate de incluir Ciudad y País para cada uno, y un FRAGMENTO NARRATIVO (book_excerpt) evocador.
 PROMPT;
     }
 
@@ -448,7 +448,30 @@ PROMPT;
         // Validate coordinates exist
         if (!isset($data['map_config']['center_coordinates']['lat']) ||
             !isset($data['map_config']['center_coordinates']['lng'])) {
-            return null;
+            
+            // Auto-calculate center from markers if missing
+            $latSum = 0;
+            $lngSum = 0;
+            $count = 0;
+            
+            foreach ($data['markers'] as $m) {
+                if (isset($m['coordinates']['lat']) && isset($m['coordinates']['lng']) &&
+                    $m['coordinates']['lat'] != 0 && $m['coordinates']['lng'] != 0) {
+                    $latSum += $m['coordinates']['lat'];
+                    $lngSum += $m['coordinates']['lng'];
+                    $count++;
+                }
+            }
+            
+            if ($count > 0) {
+                $data['map_config']['center_coordinates'] = [
+                    'lat' => $latSum / $count,
+                    'lng' => $lngSum / $count
+                ];
+                Logger::info("Calculated map center from $count markers");
+            } else {
+                return null;
+            }
         }
 
         // Ensure all markers have required fields
@@ -477,10 +500,42 @@ PROMPT;
                     "zoom_level" => 6
                 ],
                 "markers" => [
-                    ["title" => "King's Cross Station (Andén 9¾)", "coordinates" => ["lat" => 51.5320, "lng" => -0.1240], "snippet" => "Entrada al mundo mágico, donde Harry toma el Hogwarts Express.", "chapter_context" => "Inicio del viaje", "location_type" => "discovery", "importance" => "high"],
-                    ["title" => "Alnwick Castle (Hogwarts)", "coordinates" => ["lat" => 55.4155, "lng" => -1.7061], "snippet" => "Castillo utilizado para las escenas exteriores de Hogwarts.", "chapter_context" => "Escuela de Magia", "location_type" => "event", "importance" => "high"],
-                    ["title" => "Leadenhall Market (Callejón Diagon)", "coordinates" => ["lat" => 51.5129, "lng" => -0.0838], "snippet" => "Mercado victoriano que inspiró el Callejón Diagon.", "chapter_context" => "Compras mágicas", "location_type" => "discovery", "importance" => "medium"],
-                    ["title" => "Glenfinnan Viaduct", "coordinates" => ["lat" => 56.8760, "lng" => -5.4319], "snippet" => "El famoso puente por donde pasa el Hogwarts Express.", "chapter_context" => "Viaje a Hogwarts", "location_type" => "event", "importance" => "medium"]
+                    [
+                        "title" => "King's Cross Station (Andén 9¾)", 
+                        "coordinates" => ["lat" => 51.5320, "lng" => -0.1240], 
+                        "snippet" => "Entrada al mundo mágico, donde Harry toma el Hogwarts Express.", 
+                        "book_excerpt" => "Todo lo que Harry tuvo que hacer fue caminar directamente hacia la barrera entre los andenes nueve y diez. No chocó... estaba parado al lado de un tren de vapor escarlata.",
+                        "chapter_context" => "El Viaje Comienza", 
+                        "location_type" => "discovery", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Alnwick Castle (Hogwarts)", 
+                        "coordinates" => ["lat" => 55.4155, "lng" => -1.7061], 
+                        "snippet" => "Castillo utilizado para las escenas exteriores de Hogwarts.", 
+                        "book_excerpt" => "El castillo era una enorme construcción con muchas torres y torrecillas... encaramado sobre una montaña, con sus ventanas brillando bajo el cielo estrellado.",
+                        "chapter_context" => "Llegada a Hogwarts", 
+                        "location_type" => "event", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Leadenhall Market (Callejón Diagon)", 
+                        "coordinates" => ["lat" => 51.5129, "lng" => -0.0838], 
+                        "snippet" => "Mercado victoriano que inspiró el Callejón Diagon.", 
+                        "book_excerpt" => "Harry deseó tener ocho ojos más... Había tiendas que vendían túnicas, telescopios y extraños instrumentos de plata que Harry nunca había visto antes.",
+                        "chapter_context" => "Compras mágicas", 
+                        "location_type" => "discovery", 
+                        "importance" => "medium"
+                    ],
+                    [
+                        "title" => "Glenfinnan Viaduct", 
+                        "coordinates" => ["lat" => 56.8760, "lng" => -5.4319], 
+                        "snippet" => "El famoso puente por donde pasa el Hogwarts Express.", 
+                        "book_excerpt" => "El tren aceleró hacia el norte... Vieron montañas y bosques, y el cielo se volvió de un púrpura profundo a medida que se ponía el sol.",
+                        "chapter_context" => "Viaje a Hogwarts", 
+                        "location_type" => "event", 
+                        "importance" => "medium"
+                    ]
                 ]
             ];
         }
@@ -494,10 +549,42 @@ PROMPT;
                     "zoom_level" => 11
                 ],
                 "markers" => [
-                    ["title" => "Great Neck (West Egg)", "coordinates" => ["lat" => 40.8007, "lng" => -73.7285], "snippet" => "La mansión de Gatsby donde organiza sus legendarias fiestas.", "chapter_context" => "Fiestas de Gatsby", "location_type" => "event", "importance" => "high"],
-                    ["title" => "Manhasset (East Egg)", "coordinates" => ["lat" => 40.7976, "lng" => -73.6996], "snippet" => "Hogar de Daisy y Tom Buchanan, la vieja aristocracia.", "chapter_context" => "Casa de los Buchanan", "location_type" => "meetup", "importance" => "high"],
-                    ["title" => "Plaza Hotel NYC", "coordinates" => ["lat" => 40.7644, "lng" => -73.9745], "snippet" => "Escenario de la confrontación entre Gatsby y Tom.", "chapter_context" => "Clímax", "location_type" => "danger", "importance" => "high"],
-                    ["title" => "Flushing (Valle de las Cenizas)", "coordinates" => ["lat" => 40.7654, "lng" => -73.8174], "snippet" => "Zona industrial donde viven los Wilson, símbolo de decadencia.", "chapter_context" => "Tragedia", "location_type" => "danger", "importance" => "medium"]
+                    [
+                        "title" => "Great Neck (West Egg)", 
+                        "coordinates" => ["lat" => 40.8007, "lng" => -73.7285], 
+                        "snippet" => "La mansión de Gatsby donde organiza sus legendarias fiestas.", 
+                        "book_excerpt" => "En sus jardines azules, hombres y mujeres iban y venían como polillas entre los susurros y el champán y las estrellas.",
+                        "chapter_context" => "Fiestas de Gatsby", 
+                        "location_type" => "event", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Manhasset (East Egg)", 
+                        "coordinates" => ["lat" => 40.7976, "lng" => -73.6996], 
+                        "snippet" => "Hogar de Daisy y Tom Buchanan, la vieja aristocracia.", 
+                        "book_excerpt" => "Al otro lado de la bahía, los palacios blancos de moda de East Egg brillaban a lo largo del agua.",
+                        "chapter_context" => "Casa de los Buchanan", 
+                        "location_type" => "meetup", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Plaza Hotel NYC", 
+                        "coordinates" => ["lat" => 40.7644, "lng" => -73.9745], 
+                        "snippet" => "Escenario de la confrontación entre Gatsby y Tom.", 
+                        "book_excerpt" => "La habitación era grande y sofocante... Tom rompió el tenso silencio: '¿Qué clase de lío es este que intentas causar en mi casa?'",
+                        "chapter_context" => "Clímax", 
+                        "location_type" => "danger", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Flushing (Valle de las Cenizas)", 
+                        "coordinates" => ["lat" => 40.7654, "lng" => -73.8174], 
+                        "snippet" => "Zona industrial donde viven los Wilson, símbolo de decadencia.", 
+                        "book_excerpt" => "Este es el valle de las cenizas: una granja fantástica donde las cenizas crecen como trigo en crestas y colinas y jardines grotescos.",
+                        "chapter_context" => "Tragedia", 
+                        "location_type" => "danger", 
+                        "importance" => "medium"
+                    ]
                 ]
             ];
         }
@@ -511,9 +598,33 @@ PROMPT;
                     "zoom_level" => 7
                 ],
                 "markers" => [
-                    ["title" => "Chatsworth House (Pemberley)", "coordinates" => ["lat" => 53.2270, "lng" => -1.6115], "snippet" => "La majestuosa mansión de Mr. Darcy que impresiona a Elizabeth.", "chapter_context" => "Visita a Pemberley", "location_type" => "discovery", "importance" => "high"],
-                    ["title" => "Lyme Park", "coordinates" => ["lat" => 53.3370, "lng" => -2.0550], "snippet" => "Otra locación usada como Pemberley en adaptaciones.", "chapter_context" => "Escenas exteriores", "location_type" => "event", "importance" => "medium"],
-                    ["title" => "Bath", "coordinates" => ["lat" => 51.3811, "lng" => -2.3590], "snippet" => "Ciudad elegante de la época Regencia.", "chapter_context" => "Sociedad", "location_type" => "meetup", "importance" => "medium"]
+                    [
+                        "title" => "Chatsworth House (Pemberley)", 
+                        "coordinates" => ["lat" => 53.2270, "lng" => -1.6115], 
+                        "snippet" => "La majestuosa mansión de Mr. Darcy que impresiona a Elizabeth.", 
+                        "book_excerpt" => "Elizabeth estaba encantada. Nunca había visto un lugar tan favorecido por la naturaleza, ni donde la belleza natural hubiera sido tan poco contrarrestada por un gusto torpe.",
+                        "chapter_context" => "Visita a Pemberley", 
+                        "location_type" => "discovery", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Lyme Park", 
+                        "coordinates" => ["lat" => 53.3370, "lng" => -2.0550], 
+                        "snippet" => "Otra locación usada como Pemberley en adaptaciones.", 
+                        "book_excerpt" => "Era un edificio grande y hermoso, situado en un terreno elevado... y frente a él, un arroyo de cierta importancia se hinchaba.",
+                        "chapter_context" => "Escenas exteriores", 
+                        "location_type" => "event", 
+                        "importance" => "medium"
+                    ],
+                    [
+                        "title" => "Bath", 
+                        "coordinates" => ["lat" => 51.3811, "lng" => -2.3590], 
+                        "snippet" => "Ciudad elegante de la época Regencia.", 
+                        "book_excerpt" => "Llegaron a Bath. Catherine estaba toda ojos ansiosos... Estaba impaciente por ver todo.",
+                        "chapter_context" => "Sociedad", 
+                        "location_type" => "meetup", 
+                        "importance" => "medium"
+                    ]
                 ]
             ];
         }
@@ -527,16 +638,125 @@ PROMPT;
                     "zoom_level" => 11
                 ],
                 "markers" => [
-                    ["title" => "Tommen College (Inspiración)", "coordinates" => ["lat" => 51.8930, "lng" => -8.4920], "snippet" => "El prestigioso colegio privado donde estudian Johnny y Shannon.", "chapter_context" => "Inicio", "location_type" => "event", "importance" => "high"],
-                    ["title" => "Estadio de Rugby Musgrave Park", "coordinates" => ["lat" => 51.8847, "lng" => -8.4985], "snippet" => "Estadio donde Johnny brilla como estrella del rugby irlandés.", "chapter_context" => "Partidos de Rugby", "location_type" => "event", "importance" => "high"],
-                    ["title" => "Cork City Centre", "coordinates" => ["lat" => 51.8969, "lng" => -8.4863], "snippet" => "Centro de la ciudad donde transcurren escenas cotidianas.", "chapter_context" => "Vida diaria", "location_type" => "meetup", "importance" => "medium"],
-                    ["title" => "Casa de los Kavanagh", "coordinates" => ["lat" => 51.9150, "lng" => -8.4500], "snippet" => "El hogar de la adinerada familia Kavanagh en las afueras.", "chapter_context" => "Familia de Johnny", "location_type" => "meetup", "importance" => "high"],
-                    ["title" => "Ballylaggin (Zona residencial)", "coordinates" => ["lat" => 51.8750, "lng" => -8.5100], "snippet" => "El barrio donde vive Shannon, con un pasado difícil.", "chapter_context" => "Hogar de Shannon", "location_type" => "danger", "importance" => "high"],
-                    ["title" => "Dublin - Aviva Stadium", "coordinates" => ["lat" => 53.3352, "lng" => -6.2286], "snippet" => "El estadio nacional donde Johnny sueña con jugar profesionalmente.", "chapter_context" => "Sueños de rugby", "location_type" => "discovery", "importance" => "medium"]
+                    [
+                        "title" => "Tommen College (Inspiración)", 
+                        "real_world_location" => "University College Cork",
+                        "is_fictional" => true,
+                        "coordinates" => ["lat" => 51.8930, "lng" => -8.4920], 
+                        "snippet" => "El prestigioso colegio privado donde estudian Johnny y Shannon.", 
+                        "book_excerpt" => "Las puertas de hierro forjado de Tommen College se alzaban ante mí, intimidantes y grandiosas, prometiendo un mundo al que no pertenecía.",
+                        "chapter_context" => "Inicio", 
+                        "location_type" => "event", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Estadio de Rugby Musgrave Park", 
+                        "real_world_location" => "Musgrave Park, Cork",
+                        "is_fictional" => false,
+                        "coordinates" => ["lat" => 51.8847, "lng" => -8.4985], 
+                        "snippet" => "Estadio donde Johnny brilla como estrella del rugby irlandés.", 
+                        "book_excerpt" => "El rugido de la multitud era ensordecedor. Sentí el césped bajo mis botas y el peso de la camiseta número 13 sobre mis hombros.",
+                        "chapter_context" => "Partidos de Rugby", 
+                        "location_type" => "event", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Cork City Centre", 
+                        "coordinates" => ["lat" => 51.8969, "lng" => -8.4863], 
+                        "snippet" => "Centro de la ciudad donde transcurren escenas cotidianas.", 
+                        "book_excerpt" => "Caminamos por St. Patrick's Street bajo la lluvia típica de Cork, las luces de las tiendas reflejándose en el pavimento mojado.",
+                        "chapter_context" => "Vida diaria", 
+                        "location_type" => "meetup", 
+                        "importance" => "medium"
+                    ],
+                    [
+                        "title" => "Casa de los Kavanagh", 
+                        "coordinates" => ["lat" => 51.9150, "lng" => -8.4500], 
+                        "snippet" => "El hogar de la adinerada familia Kavanagh en las afueras.", 
+                        "book_excerpt" => "La casa era inmensa, moderna y fría. Todo lo contrario a lo que yo llamaba hogar, pero llena de secretos que Johnny intentaba ocultar.",
+                        "chapter_context" => "Familia de Johnny", 
+                        "location_type" => "meetup", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Ballylaggin (Zona residencial)", 
+                        "coordinates" => ["lat" => 51.8750, "lng" => -8.5100], 
+                        "snippet" => "El barrio donde vive Shannon, con un pasado difícil.", 
+                        "book_excerpt" => "Regresar a casa siempre sentía como contener la respiración. Las calles familiares de Ballylaggin guardaban demasiados recuerdos dolorosos.",
+                        "chapter_context" => "Hogar de Shannon", 
+                        "location_type" => "danger", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Dublin - Aviva Stadium", 
+                        "coordinates" => ["lat" => 53.3352, "lng" => -6.2286], 
+                        "snippet" => "El estadio nacional donde Johnny sueña con jugar profesionalmente.", 
+                        "book_excerpt" => "Miré hacia las gradas vacías del Aviva, imaginándolas llenas, coreando mi nombre. Era más que un juego; era mi boleto de salida.",
+                        "chapter_context" => "Sueños de rugby", 
+                        "location_type" => "discovery", 
+                        "importance" => "medium"
+                    ]
                 ]
             ];
         }
 
+        // Alas de Sangre / Fourth Wing (Rebecca Yarros) - Basgiath / Navarre
+        if (strpos($titleLower, 'alas de sangre') !== false || strpos($titleLower, 'fourth wing') !== false || strpos($titleLower, 'yarros') !== false) {
+            return [
+                "map_config" => [
+                    "region_name" => "Navarre (Inspiración: Snowdonia, Gales)",
+                    "center_coordinates" => ["lat" => 53.0685, "lng" => -4.0762],
+                    "zoom_level" => 9
+                ],
+                "markers" => [
+                    [
+                        "title" => "Basgiath War College", 
+                        "real_world_location" => "Snowdonia National Park", 
+                        "is_fictional" => true,
+                        "coordinates" => ["lat" => 53.0685, "lng" => -4.0762], 
+                        "snippet" => "La brutal academia de jinetes de dragones construida en la montaña.", 
+                        "book_excerpt" => "Un jinete de dragón sin su dragón está muerto. Bienvenidos al Cuadrante de Jinetes. Bienvenidos a Basgiath.",
+                        "chapter_context" => "Llegada al Colegio", 
+                        "location_type" => "danger", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "Valle de Lucine (Vuelo)", 
+                        "real_world_location" => "Mach Loop, Wales", 
+                        "is_fictional" => true,
+                        "coordinates" => ["lat" => 52.7066, "lng" => -3.8561], 
+                        "snippet" => "Valle traicionero donde se realizan maniobras de vuelo de alta velocidad.", 
+                        "book_excerpt" => "Tairn se lanzó en picado hacia el valle, el viento rugiendo en mis oídos mientras la gravedad intentaba arrancarme de la silla.",
+                        "chapter_context" => "Entrenamiento de Vuelo", 
+                        "location_type" => "event", 
+                        "importance" => "high"
+                    ],
+                    [
+                        "title" => "La Torre del Homenaje (Interrogatorios)", 
+                        "real_world_location" => "Dolbadarn Castle", 
+                        "is_fictional" => true,
+                        "coordinates" => ["lat" => 53.1164, "lng" => -4.1186], 
+                        "snippet" => "Lugar oscuro dentro de Basgiath donde ocurren eventos secretos.", 
+                        "book_excerpt" => "Las piedras de la torre parecían absorber la luz. Nadie quería ser convocado allí después del toque de queda.",
+                        "chapter_context" => "Secretos", 
+                        "location_type" => "danger", 
+                        "importance" => "medium"
+                    ],
+                    [
+                        "title" => "Aretia (Ciudad Rebelde)", 
+                        "real_world_location" => "Conwy", 
+                        "is_fictional" => true,
+                        "coordinates" => ["lat" => 53.2829, "lng" => -3.8295], 
+                        "snippet" => "Ciudad fortificada clave para la resistencia.", 
+                        "book_excerpt" => "Las murallas de Aretia se alzaban desafiantes contra el cielo, un bastión de esperanza que creíamos perdido.",
+                        "chapter_context" => "Revelaciones", 
+                        "location_type" => "meetup", 
+                        "importance" => "high"
+                    ]
+                ]
+            ];
+        }
+        
         // Generic fallback - use London as default
         return [
             "map_config" => [
@@ -549,6 +769,7 @@ PROMPT;
                     "title" => "Escenario Principal",
                     "coordinates" => ["lat" => 51.5074, "lng" => -0.1278],
                     "snippet" => "Ubicación central de '$title'.",
+                    "book_excerpt" => "El escenario principal de la historia, donde los destinos de los personajes se entrelazan en esta narrativa.",
                     "chapter_context" => "Historia completa",
                     "location_type" => "event",
                     "importance" => "high"
@@ -558,76 +779,113 @@ PROMPT;
     }
     /**
      * Refine marker locations by verifying with Nominatim Search API
-     */
-    /**
-     * Refine marker locations by verifying with Nominatim Search API
-     * STRICT MODE: If location is not found, it is discarded to avoid "inventing" places.
+     * CASCADE MODE: Try specific place -> city -> country -> AI coordinates
      */
     private function refineLocations(array $markers): array
     {
         $refinedMarkers = [];
         
         foreach ($markers as $marker) {
-            // Priority 1: Use explicit 'real_world_location' provided by AI
-            // Priority 2: Use title but strip parenthesis like "Hogwarts (Alnwick Castle)"
-            $queryCandidate = $marker['real_world_location'] ?? $marker['title'];
-            
-            // Clean query: remove text in parenthesis if it's the title
-            $cleanQuery = preg_replace('/\s*\(.*?\)\s*/', '', $queryCandidate);
-            
-            if (empty($cleanQuery) || strlen($cleanQuery) < 3) continue;
+            $realCoords = null;
+            $usedSource = 'ai_generated';
+            $successQuery = '';
 
-            // Attempt 1: Strict Search
-            $realCoords = $this->verifyLocationWithNominatim($cleanQuery);
+            // 1. Construct search queries in order of specificity
+            $queries = [];
             
-            if (!$realCoords && isset($marker['real_world_location'])) {
-                // Attempt 2: If we had a specific "real world" field that failed, try just the title as fallback? 
-                // Or maybe the AI gave "City, Country" in title.
-                // Let's try searching for the Location Type context if possible? No.
-                // Try searching removing "The" or simple tweaks?
+            // Query A: Full provided real_world_location
+            if (!empty($marker['real_world_location'])) {
+                $queries[] = $marker['real_world_location'];
+            }
+            
+            // Query B: Constructed from structured data (Place, City, Country)
+            if (!empty($marker['place_name']) && !empty($marker['city_or_region'])) {
+                $queries[] = $marker['place_name'] . ', ' . $marker['city_or_region'];
+            }
+            
+            // Query C: City + Country (High confidence fallback)
+            if (!empty($marker['city_or_region'])) {
+                $cityQuery = $marker['city_or_region'];
+                if (!empty($marker['country'])) {
+                    $cityQuery .= ', ' . $marker['country'];
+                }
+                $queries[] = $cityQuery;
             }
 
+            // Query D: Just Title (cleaned) if nothing else
+            $cleanTitle = preg_replace('/\s*\(.*?\)\s*/', '', $marker['title']);
+            if (strlen($cleanTitle) > 3) {
+                $queries[] = $cleanTitle;
+            }
+
+            // Deduplicate queries
+            $queries = array_unique($queries);
+
+            // 2. Try each query with Nominatim
+            foreach ($queries as $query) {
+                if (empty($query)) continue;
+                
+                $realCoords = $this->verifyLocationWithNominatim($query);
+                usleep(1100000); // Respect rate limit (1 req/sec)
+
+                if ($realCoords) {
+                    $usedSource = 'nominatim';
+                    $successQuery = $query;
+                    break; // Found it! Stop searching.
+                }
+            }
+
+            // 3. Assign coordinates
             if ($realCoords) {
                 $marker['coordinates'] = $realCoords;
+                $marker['source'] = 'nominatim';
+                $marker['geocoded_query'] = $successQuery;
                 $refinedMarkers[] = $marker;
+            } elseif (
+                isset($marker['coordinates']['lat']) && 
+                isset($marker['coordinates']['lng']) &&
+                $marker['coordinates']['lat'] != 0 &&
+                $marker['coordinates']['lng'] != 0
+            ) {
+                // Fallback to AI coordinates
+                $marker['source'] = 'ai_generated';
+                $refinedMarkers[] = $marker;
+                Logger::info("Usando coordenadas IA para marcador", ['title' => $marker['title']]);
             } else {
-                // FAILED VERIFICATION.
-                // Do NOT include this marker to avoid "inventing" locations.
-                // Exception: If the AI was extremely confident (we don't know), but user complained about fake locations.
-                // Better to show fewer, accurate markers than many fake ones.
-                Logger::warning("Geocode failed, discarding marker", ['query' => $cleanQuery]);
+                Logger::warning("Marcador descartado: Sin coordenadas válidas", ['title' => $marker['title']]);
             }
-            
-            usleep(1100000); // Respect generic rate limit
         }
         
-        // If ALL markers were filtered out (likely a fantasy book with fictional places in a real city)
-        // We reinstate ONE marker as a general "Inspiration" marker to avoid an empty map.
+        // If ALL markers were filtered out, try global fallback using synopsis or title
         if (empty($refinedMarkers) && !empty($markers)) {
             $baseMarker = $markers[0];
-            $fallbackQuery = $baseMarker['real_world_location'] ?? 'City Center';
+            // Try structured data first for fallback
+            $fallbackQuery = $baseMarker['city_or_region'] ?? $baseMarker['real_world_location'] ?? null;
+            
+            if (!$fallbackQuery) {
+                 // Clean title as last resort
+                 $fallbackQuery = preg_replace('/\s*\(.*?\)\s*/', '', $baseMarker['title']);
+            }
             
             // Try to find coordinates for the general region/city
             $fallbackCoords = $this->verifyLocationWithNominatim($fallbackQuery);
             
-            if (!$fallbackCoords) {
-                // Last ditch: if even the fallback query didn't work, we can't show anything valid.
-                return []; 
+            if ($fallbackCoords) {
+                // Create a general "Atmosphere" marker
+                $refinedMarkers[] = [
+                    'title' => "Escenario Principal (Inspiración)",
+                    'real_world_location' => $fallbackQuery,
+                    'is_fictional' => true,
+                    'coordinates' => $fallbackCoords,
+                    'snippet' => "Ubicación general aproximada para la ambientación del libro.",
+                    'chapter_context' => "Contexto General",
+                    'location_type' => "discovery",
+                    'importance' => "high",
+                    'source' => 'fallback_region'
+                ];
+                
+                Logger::info("All specific markers discarded. Created fallback inspiration marker.", ['location' => $fallbackQuery]);
             }
-
-            // Create a general "Atmosphere" marker
-            $refinedMarkers[] = [
-                'title' => "Escenario de Inspiración",
-                'real_world_location' => $fallbackQuery,
-                'is_fictional' => true,
-                'coordinates' => $fallbackCoords,
-                'snippet' => "Esta historia transcurre en lugares ficticios inspirados en esta región. El mapa muestra la ambientación general.",
-                'chapter_context' => "Contexto General",
-                'location_type' => "discovery",
-                'importance' => "high"
-            ];
-            
-            Logger::info("All specific markers discarded. Created fallback inspiration marker.", ['location' => $fallbackQuery]);
         }
         
         return $refinedMarkers;
